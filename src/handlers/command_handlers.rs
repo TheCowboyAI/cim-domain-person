@@ -6,8 +6,9 @@ use crate::{
     events::PersonEvent,
     value_objects::*,
 };
-use cim_core_domain::{AggregateRoot, EntityId, DomainResult};
+use cim_domain::{AggregateRoot, EntityId, DomainResult};
 use chrono::Utc;
+use std::collections::HashMap;
 
 /// Handle person commands
 pub async fn handle_person_command(
@@ -66,7 +67,7 @@ pub async fn handle_person_command(
                     changed_at: Utc::now(),
                 }])
             } else {
-                Err(cim_core_domain::DomainError::ValidationError(
+                Err(cim_domain::DomainError::ValidationError(
                     "No employment found for organization".to_string()
                 ))
             }

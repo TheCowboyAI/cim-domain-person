@@ -5,7 +5,7 @@ use crate::{
     projections::{PersonProjection, EmployeeView, LdapProjection},
     queries::PersonQuery,
 };
-use cim_core_domain::DomainResult;
+use cim_domain::DomainResult;
 use std::collections::HashMap;
 
 /// Person read model for queries
@@ -59,6 +59,31 @@ impl PersonReadModel {
                     .collect();
 
                 Ok(PersonQueryResult::People(found))
+            }
+
+            PersonQuery::GetEmployeeView { person_id } => {
+                // TODO: Implement employee view projection
+                Ok(PersonQueryResult::NotFound)
+            }
+
+            PersonQuery::GetLdapProjection { person_id, base_dn } => {
+                // TODO: Implement LDAP projection
+                Ok(PersonQueryResult::NotFound)
+            }
+
+            PersonQuery::FindPeopleByOrganization { organization_id, include_inactive } => {
+                // TODO: Implement organization-based search
+                Ok(PersonQueryResult::People(vec![]))
+            }
+
+            PersonQuery::FindPeopleBySkill { skill_name, min_proficiency } => {
+                // TODO: Implement skill-based search
+                Ok(PersonQueryResult::People(vec![]))
+            }
+
+            PersonQuery::FindPeopleByRole { role } => {
+                // TODO: Implement role-based search
+                Ok(PersonQueryResult::People(vec![]))
             }
         }
     }

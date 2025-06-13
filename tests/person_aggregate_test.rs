@@ -2,7 +2,7 @@ use cim_domain_person::{
     Person, PersonId, PersonCommand, PersonEvent,
     IdentityComponent, ContactComponent, EmailAddress,
 };
-use cim_core_domain::{EntityId, AggregateRoot};
+use cim_domain::{EntityId, AggregateRoot};
 use uuid::Uuid;
 
 #[test]

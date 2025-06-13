@@ -3,7 +3,7 @@
 //! A Person is an aggregate with an ID and various components that can be
 //! composed to create different views (Employee, Customer, etc.)
 
-use cim_core_domain::{AggregateRoot, Entity, EntityId, DomainError, DomainResult};
+use cim_domain::{AggregateRoot, Entity, EntityId, DomainError, DomainResult};
 use cim_domain::{Component, ComponentStorage};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

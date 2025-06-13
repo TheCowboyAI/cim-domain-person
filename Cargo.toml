@@ -11,8 +11,8 @@ categories = ["data-structures", "web-programming"]
 
 [dependencies]
 # Core dependencies
-cim-core-domain = { path = "../cim-core-domain" }
 cim-domain = { path = "../cim-domain" }
+cim-subject = { path = "../cim-subject" }
 
 # Async runtime
 tokio = { version = "1.42", features = ["full"] }

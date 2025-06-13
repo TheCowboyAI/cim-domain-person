@@ -5,7 +5,7 @@ use crate::{
     events::PersonEvent,
     value_objects::*,
 };
-use cim_core_domain::{DomainResult, DomainError};
+use cim_domain::{DomainResult, DomainError, AggregateRoot};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -180,7 +180,7 @@ impl LdapProjection {
             .collect())
             .unwrap_or_default();
 
-        let (title, department) = employment.map(|e| (Some(e.title), e.department))
+        let (title, department) = employment.map(|e| (Some(e.title.clone()), e.department.clone()))
             .unwrap_or((None, None));
 
         Ok(Self {
