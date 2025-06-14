@@ -1,6 +1,5 @@
 //! Commands for the person domain
 
-use crate::aggregate::PersonId;
 use crate::value_objects::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

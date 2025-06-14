@@ -7,8 +7,6 @@ use cim_domain::{AggregateRoot, Entity, EntityId, DomainError, DomainResult};
 use cim_domain::{Component, ComponentStorage};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;
-use std::any::Any;
 
 /// Person aggregate - represents an individual with composable components
 #[derive(Debug, Clone)]

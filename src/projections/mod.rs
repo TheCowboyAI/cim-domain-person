@@ -7,7 +7,6 @@ use crate::{
 };
 use cim_domain::{DomainResult, DomainError, AggregateRoot};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Person projection for read models
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,9 +17,14 @@ pub struct PersonProjection {
     pub phones: Vec<PhoneNumber>,
     pub is_active: bool,
     pub employment: Option<EmploymentComponent>,
-    pub position: Option<PositionComponent>,
-    pub skills: Option<SkillsComponent>,
+    pub position: Option<String>,
+    pub department: Option<String>,
+    pub skills: Vec<SkillProficiency>,
     pub access: Option<AccessComponent>,
+    pub organization_id: Option<uuid::Uuid>,
+    pub manager_id: Option<PersonId>,
+    pub direct_reports: Vec<PersonId>,
+    pub roles: Vec<String>,
 }
 
 impl PersonProjection {
@@ -47,6 +51,9 @@ impl PersonProjection {
             PersonEvent::EmploymentAdded { employment, .. } => {
                 self.employment = Some(employment.clone());
                 self.is_active = employment.status == "active";
+                self.organization_id = Some(employment.organization_id);
+                self.position = Some(employment.title.clone());
+                self.department = employment.department.clone();
             }
 
             PersonEvent::EmploymentStatusChanged { new_status, .. } => {
@@ -57,15 +64,18 @@ impl PersonProjection {
             }
 
             PersonEvent::PositionAdded { position, .. } => {
-                self.position = Some(position.clone());
+                self.position = Some(position.title.clone());
+                // Department is on employment, not position
+                // Manager relationship would need to be tracked separately
             }
 
             PersonEvent::SkillsUpdated { new_skills, .. } => {
-                self.skills = Some(new_skills.clone());
+                self.skills = new_skills.skills.values().cloned().collect();
             }
 
             PersonEvent::AccessGranted { access, .. } => {
                 self.access = Some(access.clone());
+                self.roles = access.roles.clone();
             }
 
             _ => {}
@@ -78,16 +88,20 @@ impl PersonProjection {
 pub struct EmployeeView {
     /// The person's unique identifier
     pub person_id: PersonId,
-    /// Identity information (name, DOB, etc.)
-    pub identity: IdentityComponent,
-    /// Contact information (email, phone, address)
-    pub contact: ContactComponent,
-    /// Employment details (organization, title, department)
-    pub employment: EmploymentComponent,
-    /// Current position information if available
-    pub position: Option<PositionComponent>,
-    /// Skills and certifications if available
-    pub skills: Option<SkillsComponent>,
+    /// Employee name
+    pub name: String,
+    /// Primary email
+    pub email: Option<String>,
+    /// Department
+    pub department: Option<String>,
+    /// Position/title
+    pub position: Option<String>,
+    /// Manager ID
+    pub manager_id: Option<PersonId>,
+    /// Direct reports
+    pub direct_reports: Vec<PersonId>,
+    /// Active status
+    pub is_active: bool,
 }
 
 impl EmployeeView {
@@ -96,31 +110,24 @@ impl EmployeeView {
         let identity = person.get_component::<IdentityComponent>()
             .ok_or_else(|| DomainError::ValidationError(
                 "Person missing identity component".to_string()
-            ))?
-            .clone();
+            ))?;
 
-        let contact = person.get_component::<ContactComponent>()
-            .ok_or_else(|| DomainError::ValidationError(
-                "Employee missing contact component".to_string()
-            ))?
-            .clone();
-
-        let employment = person.get_component::<EmploymentComponent>()
-            .ok_or_else(|| DomainError::ValidationError(
-                "Employee missing employment component".to_string()
-            ))?
-            .clone();
-
-        let position = person.get_component::<PositionComponent>().cloned();
-        let skills = person.get_component::<SkillsComponent>().cloned();
+        let contact = person.get_component::<ContactComponent>();
+        let employment = person.get_component::<EmploymentComponent>();
+        let position = person.get_component::<PositionComponent>();
 
         Ok(Self {
             person_id: person.id(),
-            identity,
-            contact,
-            employment,
-            position,
-            skills,
+            name: identity.preferred_name.as_ref()
+                .unwrap_or(&identity.legal_name)
+                .clone(),
+            email: contact.and_then(|c| c.emails.first().map(|e| e.email.clone())),
+            department: employment.and_then(|e| e.department.clone()),
+            position: position.map(|p| p.title.clone())
+                .or_else(|| employment.map(|e| e.title.clone())),
+            manager_id: employment.and_then(|e| e.manager_id.map(PersonId::from_uuid)),
+            direct_reports: Vec::new(), // Would need to be populated from a query
+            is_active: employment.map(|e| e.status == "active").unwrap_or(false),
         })
     }
 }
@@ -130,6 +137,8 @@ impl EmployeeView {
 pub struct LdapProjection {
     /// Distinguished Name (full LDAP path)
     pub dn: String,
+    /// User ID
+    pub uid: String,
     /// Common Name (typically the preferred name)
     pub cn: String,
     /// Surname (last name)
@@ -140,12 +149,8 @@ pub struct LdapProjection {
     pub mail: Vec<String>,
     /// Phone numbers
     pub telephone_number: Vec<String>,
-    /// Job title if employed
-    pub title: Option<String>,
-    /// Department if employed
-    pub department: Option<String>,
-    /// Manager's DN if applicable
-    pub manager: Option<String>,
+    /// Object classes
+    pub object_class: Vec<String>,
 }
 
 impl LdapProjection {
@@ -157,7 +162,6 @@ impl LdapProjection {
             ))?;
 
         let contact = person.get_component::<ContactComponent>();
-        let employment = person.get_component::<EmploymentComponent>();
 
         // Parse name (simple split for now)
         let name_parts: Vec<&str> = identity.legal_name.split_whitespace().collect();
@@ -180,19 +184,15 @@ impl LdapProjection {
             .collect())
             .unwrap_or_default();
 
-        let (title, department) = employment.map(|e| (Some(e.title.clone()), e.department.clone()))
-            .unwrap_or((None, None));
-
         Ok(Self {
             dn,
+            uid: person.id().to_string(),
             cn,
             sn,
             given_name,
             mail,
             telephone_number,
-            title,
-            department,
-            manager: None, // Would need to resolve manager's DN
+            object_class: vec!["inetOrgPerson".to_string(), "person".to_string()],
         })
     }
 }

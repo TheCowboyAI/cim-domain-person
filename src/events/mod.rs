@@ -1,6 +1,5 @@
 //! Events for the person domain
 
-use crate::aggregate::PersonId;
 use crate::value_objects::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

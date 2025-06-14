@@ -1,12 +1,12 @@
 //! Command handlers for person domain
 
 use crate::{
-    aggregate::{Person, PersonId, PersonMarker},
+    aggregate::Person,
     commands::PersonCommand,
     events::PersonEvent,
     value_objects::*,
 };
-use cim_domain::{AggregateRoot, EntityId, DomainResult};
+use cim_domain::DomainResult;
 use chrono::Utc;
 use std::collections::HashMap;
 
