@@ -20,16 +20,24 @@ pub enum PersonEvent {
         registered_at: DateTime<Utc>,
     },
 
-    /// Contact information was updated
-    ContactUpdated {
+    /// Contact information was removed
+    ContactRemoved {
         /// Person's ID
         person_id: Uuid,
         /// Old contact information
-        old_contact: Option<ContactComponent>,
+        old_contact: ContactComponent,
+        /// When removed
+        removed_at: DateTime<Utc>,
+    },
+
+    /// Contact information was added
+    ContactAdded {
+        /// Person's ID
+        person_id: Uuid,
         /// New contact information
         new_contact: ContactComponent,
-        /// When updated
-        updated_at: DateTime<Utc>,
+        /// When added
+        added_at: DateTime<Utc>,
     },
 
     /// Employment was added
@@ -68,16 +76,24 @@ pub enum PersonEvent {
         added_at: DateTime<Utc>,
     },
 
-    /// Skills were updated
-    SkillsUpdated {
+    /// Skills were removed
+    SkillsRemoved {
         /// Person's ID
         person_id: Uuid,
         /// Old skills
-        old_skills: Option<SkillsComponent>,
+        old_skills: SkillsComponent,
+        /// When removed
+        removed_at: DateTime<Utc>,
+    },
+
+    /// Skills were added
+    SkillsAdded {
+        /// Person's ID
+        person_id: Uuid,
         /// New skills
         new_skills: SkillsComponent,
-        /// When updated
-        updated_at: DateTime<Utc>,
+        /// When added
+        added_at: DateTime<Utc>,
     },
 
     /// Access was granted
@@ -108,11 +124,13 @@ impl PersonEvent {
     pub fn aggregate_id(&self) -> Uuid {
         match self {
             PersonEvent::PersonRegistered { person_id, .. } => *person_id,
-            PersonEvent::ContactUpdated { person_id, .. } => *person_id,
+            PersonEvent::ContactRemoved { person_id, .. } => *person_id,
+            PersonEvent::ContactAdded { person_id, .. } => *person_id,
             PersonEvent::EmploymentAdded { person_id, .. } => *person_id,
             PersonEvent::EmploymentStatusChanged { person_id, .. } => *person_id,
             PersonEvent::PositionAdded { person_id, .. } => *person_id,
-            PersonEvent::SkillsUpdated { person_id, .. } => *person_id,
+            PersonEvent::SkillsRemoved { person_id, .. } => *person_id,
+            PersonEvent::SkillsAdded { person_id, .. } => *person_id,
             PersonEvent::AccessGranted { person_id, .. } => *person_id,
             PersonEvent::ExternalIdentifierAdded { person_id, .. } => *person_id,
         }
@@ -122,11 +140,13 @@ impl PersonEvent {
     pub fn event_type(&self) -> &'static str {
         match self {
             PersonEvent::PersonRegistered { .. } => "PersonRegistered",
-            PersonEvent::ContactUpdated { .. } => "ContactUpdated",
+            PersonEvent::ContactRemoved { .. } => "ContactRemoved",
+            PersonEvent::ContactAdded { .. } => "ContactAdded",
             PersonEvent::EmploymentAdded { .. } => "EmploymentAdded",
             PersonEvent::EmploymentStatusChanged { .. } => "EmploymentStatusChanged",
             PersonEvent::PositionAdded { .. } => "PositionAdded",
-            PersonEvent::SkillsUpdated { .. } => "SkillsUpdated",
+            PersonEvent::SkillsRemoved { .. } => "SkillsRemoved",
+            PersonEvent::SkillsAdded { .. } => "SkillsAdded",
             PersonEvent::AccessGranted { .. } => "AccessGranted",
             PersonEvent::ExternalIdentifierAdded { .. } => "ExternalIdentifierAdded",
         }
@@ -136,11 +156,13 @@ impl PersonEvent {
     pub fn subject(&self) -> String {
         match self {
             PersonEvent::PersonRegistered { .. } => "people.person.registered.v1",
-            PersonEvent::ContactUpdated { .. } => "people.person.contact_updated.v1",
+            PersonEvent::ContactRemoved { .. } => "people.person.contact_removed.v1",
+            PersonEvent::ContactAdded { .. } => "people.person.contact_added.v1",
             PersonEvent::EmploymentAdded { .. } => "people.person.employment_added.v1",
             PersonEvent::EmploymentStatusChanged { .. } => "people.person.employment_status_changed.v1",
             PersonEvent::PositionAdded { .. } => "people.person.position_added.v1",
-            PersonEvent::SkillsUpdated { .. } => "people.person.skills_updated.v1",
+            PersonEvent::SkillsRemoved { .. } => "people.person.skills_removed.v1",
+            PersonEvent::SkillsAdded { .. } => "people.person.skills_added.v1",
             PersonEvent::AccessGranted { .. } => "people.person.access_granted.v1",
             PersonEvent::ExternalIdentifierAdded { .. } => "people.person.external_identifier_added.v1",
         }.to_string()

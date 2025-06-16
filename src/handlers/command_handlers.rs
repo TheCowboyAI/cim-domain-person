@@ -26,18 +26,7 @@ pub async fn handle_person_command(
             }])
         }
 
-        PersonCommand::UpdateContact { person_id, contact } => {
-            let old_contact = aggregate.get_component::<ContactComponent>().cloned();
-            aggregate.remove_component::<ContactComponent>().ok();
-            aggregate.add_component(contact.clone(), "system", Some("Contact update".to_string()))?;
 
-            Ok(vec![PersonEvent::ContactUpdated {
-                person_id,
-                old_contact,
-                new_contact: contact,
-                updated_at: Utc::now(),
-            }])
-        }
 
         PersonCommand::AddEmployment { person_id, employment } => {
             aggregate.add_component(employment.clone(), "system", Some("Employment added".to_string()))?;
@@ -49,7 +38,7 @@ pub async fn handle_person_command(
             }])
         }
 
-        PersonCommand::UpdateEmploymentStatus { person_id, organization_id, status, end_date } => {
+        PersonCommand::ChangeEmploymentStatus { person_id, organization_id, status, end_date } => {
             if let Some(mut employment) = aggregate.get_component::<EmploymentComponent>().cloned() {
                 let old_status = employment.status.clone();
                 employment.status = status.clone();
@@ -83,17 +72,29 @@ pub async fn handle_person_command(
             }])
         }
 
-        PersonCommand::UpdateSkills { person_id, skills } => {
-            let old_skills = aggregate.get_component::<SkillsComponent>().cloned();
-            aggregate.remove_component::<SkillsComponent>().ok();
-            aggregate.add_component(skills.clone(), "system", Some("Skills update".to_string()))?;
-
-            Ok(vec![PersonEvent::SkillsUpdated {
+        PersonCommand::ChangeSkills { person_id, skills } => {
+            // Generate remove/add event sequence
+            let mut events = Vec::new();
+            
+            // If there are existing skills, remove them first
+            if let Some(old_skills) = aggregate.get_component::<SkillsComponent>().cloned() {
+                aggregate.remove_component::<SkillsComponent>().ok();
+                events.push(PersonEvent::SkillsRemoved {
+                    person_id,
+                    old_skills,
+                    removed_at: Utc::now(),
+                });
+            }
+            
+            // Add new skills
+            aggregate.add_component(skills.clone(), "system", Some("Skills change".to_string()))?;
+            events.push(PersonEvent::SkillsAdded {
                 person_id,
-                old_skills,
                 new_skills: skills,
-                updated_at: Utc::now(),
-            }])
+                added_at: Utc::now(),
+            });
+
+            Ok(events)
         }
 
         PersonCommand::GrantAccess { person_id, access } => {
@@ -127,6 +128,31 @@ pub async fn handle_person_command(
                 identifier,
                 added_at: Utc::now(),
             }])
+        }
+
+        PersonCommand::ChangeContact { person_id, contact } => {
+            // Generate remove/add event sequence
+            let mut events = Vec::new();
+            
+            // If there's existing contact, remove it first
+            if let Some(old_contact) = aggregate.get_component::<ContactComponent>().cloned() {
+                aggregate.remove_component::<ContactComponent>().ok();
+                events.push(PersonEvent::ContactRemoved {
+                    person_id,
+                    old_contact,
+                    removed_at: Utc::now(),
+                });
+            }
+            
+            // Add new contact
+            aggregate.add_component(contact.clone(), "system", Some("Contact change".to_string()))?;
+            events.push(PersonEvent::ContactAdded {
+                person_id,
+                new_contact: contact,
+                added_at: Utc::now(),
+            });
+
+            Ok(events)
         }
     }
 }

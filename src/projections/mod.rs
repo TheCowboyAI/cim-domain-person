@@ -43,7 +43,12 @@ impl PersonProjection {
                 self.is_active = true;
             }
 
-            PersonEvent::ContactUpdated { new_contact, .. } => {
+            PersonEvent::ContactRemoved { .. } => {
+                self.emails.clear();
+                self.phones.clear();
+            }
+
+            PersonEvent::ContactAdded { new_contact, .. } => {
                 self.emails = new_contact.emails.clone();
                 self.phones = new_contact.phones.clone();
             }
@@ -69,7 +74,11 @@ impl PersonProjection {
                 // Manager relationship would need to be tracked separately
             }
 
-            PersonEvent::SkillsUpdated { new_skills, .. } => {
+            PersonEvent::SkillsRemoved { .. } => {
+                self.skills.clear();
+            }
+
+            PersonEvent::SkillsAdded { new_skills, .. } => {
                 self.skills = new_skills.skills.values().cloned().collect();
             }
 

@@ -17,8 +17,8 @@ pub enum PersonCommand {
         contact: Option<ContactComponent>,
     },
 
-    /// Update person's contact information
-    UpdateContact {
+    /// Change person's contact information
+    ChangeContact {
         /// Person's ID
         person_id: Uuid,
         /// New contact information
@@ -33,8 +33,8 @@ pub enum PersonCommand {
         employment: EmploymentComponent,
     },
 
-    /// Update employment status
-    UpdateEmploymentStatus {
+    /// Change employment status
+    ChangeEmploymentStatus {
         /// Person's ID
         person_id: Uuid,
         /// Organization ID
@@ -53,8 +53,8 @@ pub enum PersonCommand {
         position: PositionComponent,
     },
 
-    /// Update skills
-    UpdateSkills {
+    /// Change skills
+    ChangeSkills {
         /// Person's ID
         person_id: Uuid,
         /// Skills information
@@ -80,27 +80,4 @@ pub enum PersonCommand {
     },
 }
 
-/// Component update structure for batch updates
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersonComponentUpdates {
-    /// Update identity
-    pub identity: Option<IdentityComponent>,
 
-    /// Update contact
-    pub contact: Option<ContactComponent>,
-
-    /// Update employment
-    pub employment: Option<EmploymentComponent>,
-
-    /// Update position
-    pub position: Option<PositionComponent>,
-
-    /// Update skills
-    pub skills: Option<SkillsComponent>,
-
-    /// Update access
-    pub access: Option<AccessComponent>,
-
-    /// Update external identifiers
-    pub external_identifiers: Option<ExternalIdentifiersComponent>,
-}

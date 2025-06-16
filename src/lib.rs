@@ -18,7 +18,7 @@ pub mod value_objects;
 
 // Re-export main types
 pub use aggregate::{Person, PersonId, PersonMarker};
-pub use commands::{PersonCommand, PersonComponentUpdates};
+pub use commands::PersonCommand;
 pub use events::PersonEvent;
 pub use projections::{PersonProjection, EmployeeView, LdapProjection};
 pub use queries::PersonQuery;
