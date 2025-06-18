@@ -181,7 +181,7 @@ impl LdapProjection {
             .unwrap_or(&identity.legal_name)
             .clone();
 
-        let dn = format!("cn={},ou=people,{}", cn, base_dn);
+        let dn = format!("cn={cn},ou=people,{base_dn}");
 
         let mail = contact.map(|c| c.emails.iter()
             .map(|e| e.email.clone())

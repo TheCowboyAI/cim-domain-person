@@ -13,6 +13,12 @@ pub struct PersonReadModel {
     projections: HashMap<PersonId, PersonProjection>,
 }
 
+impl Default for PersonReadModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonReadModel {
     pub fn new() -> Self {
         Self {
