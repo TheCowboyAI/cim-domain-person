@@ -1,10 +1,190 @@
-# CIM Domain Person
+# CIM Person Domain
 
-Individual identity management and personal information handling for the Composable Information Machine.
+The Person domain provides a comprehensive, component-based system for representing people in various contexts, with a special focus on Customer Relationship Management (CRM) functionality.
 
 ## Overview
 
-The Person domain manages all aspects of individual identity within the CIM ecosystem. It handles personal information, authentication credentials, organizational memberships, preferences, and privacy controls. This domain serves as the foundation for user-centric features while maintaining strict privacy and security standards.
+The Person domain uses a flexible component-based architecture that allows you to compose person entities with different sets of components to represent various concepts like Employee, Customer, Partner, or any custom concept your business requires.
+
+## Core Components
+
+### Name Components
+
+- **NameComponent**: Comprehensive name handling supporting:
+  - Titles (Dr., Prof., etc.)
+  - Honorifics (Mr., Mrs., Ms., Mx., etc.)
+  - Multiple given names
+  - Multiple middle names (preserving order)
+  - Multiple family names (e.g., Spanish naming)
+  - Maternal family names
+  - Generational suffixes (Jr., Sr., III, etc.)
+  - Professional suffixes (MD, PhD, etc.)
+  - Preferred names/nicknames
+  - Cultural naming conventions (Western, Eastern, etc.)
+
+- **AlternativeNamesComponent**: Track previous names, aliases, professional names, etc.
+
+### Physical Components
+
+- **PhysicalAttributesComponent**: Height, weight, hair color, eye color, etc.
+- **DistinguishingMarksComponent**: Scars, tattoos, birthmarks, etc.
+- **BiometricComponent**: Privacy-preserving biometric data (hashes only)
+- **MedicalIdentityComponent**: Blood type, allergies, emergency medical info
+
+### Social Components
+
+- **RelationshipComponent**: Family, professional, and social relationships
+- **SocialMediaComponent**: Social media profiles and metrics
+- **InterestsComponent**: Hobbies, interests, and activities
+
+### Behavioral Components (CRM-focused)
+
+- **PreferencesComponent**: Communication, product, content, and privacy preferences
+- **BehavioralComponent**: Purchase behavior, engagement patterns, predictive scores
+- **SegmentationComponent**: Customer segments, lifecycle stages, value tiers
+
+### Professional Components
+
+- **EmploymentComponent**: Current employment information
+- **PositionComponent**: Role and responsibilities
+- **SkillsComponent**: Skills, certifications, and education
+- **AccessComponent**: Roles, permissions, and access levels
+
+### Contact Components
+
+- **ContactComponent**: Email addresses, phone numbers, physical addresses
+- **ExternalIdentifiersComponent**: IDs from external systems (LDAP, OAuth, etc.)
+
+## Usage Examples
+
+### Creating a Customer
+
+```rust
+use cim_domain_person::*;
+
+// Create a customer with name, contact, and preferences
+let name = NameComponent::simple("Jane".to_string(), "Doe".to_string());
+
+let contact = ContactComponent {
+    emails: vec![EmailAddress {
+        email: "jane@example.com".to_string(),
+        email_type: "personal".to_string(),
+        is_primary: true,
+        is_verified: true,
+    }],
+    phones: vec![],
+    addresses: vec![],
+};
+
+let preferences = PreferencesComponent {
+    communication: CommunicationPreferences {
+        preferred_channel: ContactChannel::Email,
+        frequency_preference: FrequencyPreference::Weekly,
+        // ... other preferences
+    },
+    // ... other preference categories
+};
+
+let customer = PersonCompositionService::create_customer(
+    name,
+    contact,
+    preferences,
+)?;
+```
+
+### Creating an Employee
+
+```rust
+let employee = PersonCompositionService::create_employee(
+    name,
+    employment,
+    contact,
+)?;
+
+// Add additional components as needed
+PersonCompositionService::add_physical_attributes(
+    &mut employee,
+    physical_attributes,
+    "hr_system",
+    Some("ID badge photo".to_string()),
+)?;
+```
+
+### Building Views
+
+Different views can be built from person entities based on their components:
+
+```rust
+// Check if person can be viewed as employee
+if EmployeeViewBuilder::can_build(&person) {
+    let employee_view = EmployeeViewBuilder::build(&person)?;
+}
+
+// Build customer view
+if CustomerViewBuilder::can_build(&person) {
+    let customer_view = CustomerViewBuilder::build(&person)?;
+}
+```
+
+## Component Composition
+
+The power of this system lies in its flexibility. You can:
+
+1. **Start Simple**: Create a person with just a name
+2. **Add Components**: Progressively add components as you learn more
+3. **Create Views**: Build different views based on available components
+4. **Track Metadata**: Know when and why each component was added
+
+Example of progressive enhancement:
+
+```rust
+// Start with basic person
+let mut person = PersonCompositionService::create_basic_person(name)?;
+
+// Add components as information becomes available
+person.add_component(contact_info, "crm_system", Some("Initial contact"))?;
+person.add_component(preferences, "user_portal", Some("User preferences set"))?;
+person.add_component(behavioral_data, "analytics", Some("Behavioral analysis"))?;
+```
+
+## Design Principles
+
+1. **Component Immutability**: Components are immutable once added. To change, remove and re-add.
+2. **Domain Alignment**: Components represent business concepts, not technical constructs.
+3. **Progressive Enhancement**: Start simple and add complexity as needed.
+4. **Audit Trail**: Track who added what component and when.
+5. **Type Safety**: Leverage Rust's type system to prevent component misuse.
+
+## Integration with Other Domains
+
+The Person domain integrates seamlessly with other CIM domains:
+
+- **Organization**: Link people to organizations via employment
+- **Location**: Reference physical addresses
+- **Workflow**: Assign people to workflow tasks
+- **Identity**: Manage authentication and authorization
+
+## Testing
+
+Run the comprehensive test suite:
+
+```bash
+cargo test
+```
+
+Run the example to see the system in action:
+
+```bash
+cargo run --example crm_person_composition
+```
+
+## Future Enhancements
+
+- Additional component types based on business needs
+- Integration with external CRM systems
+- Advanced segmentation algorithms
+- Machine learning for predictive scoring
+- GDPR compliance tools for data management
 
 ## Key Concepts
 

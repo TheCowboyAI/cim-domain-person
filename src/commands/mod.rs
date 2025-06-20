@@ -78,6 +78,128 @@ pub enum PersonCommand {
         /// Identifier value
         identifier: String,
     },
+
+    /// Update name information
+    UpdateName {
+        /// Person's ID
+        person_id: Uuid,
+        /// New name component
+        name: NameComponent,
+    },
+
+    /// Add alternative names
+    AddAlternativeNames {
+        /// Person's ID
+        person_id: Uuid,
+        /// Alternative names
+        alternative_names: AlternativeNamesComponent,
+    },
+
+    /// Update physical attributes
+    UpdatePhysicalAttributes {
+        /// Person's ID
+        person_id: Uuid,
+        /// Physical attributes
+        attributes: PhysicalAttributesComponent,
+    },
+
+    /// Add distinguishing marks
+    AddDistinguishingMarks {
+        /// Person's ID
+        person_id: Uuid,
+        /// Distinguishing marks
+        marks: DistinguishingMarksComponent,
+    },
+
+    /// Update medical identity information
+    UpdateMedicalIdentity {
+        /// Person's ID
+        person_id: Uuid,
+        /// Medical identity
+        medical: MedicalIdentityComponent,
+    },
+
+    /// Update relationships
+    UpdateRelationships {
+        /// Person's ID
+        person_id: Uuid,
+        /// Relationships
+        relationships: RelationshipComponent,
+    },
+
+    /// Update social media presence
+    UpdateSocialMedia {
+        /// Person's ID
+        person_id: Uuid,
+        /// Social media profiles
+        social_media: SocialMediaComponent,
+    },
+
+    /// Update interests
+    UpdateInterests {
+        /// Person's ID
+        person_id: Uuid,
+        /// Interests
+        interests: InterestsComponent,
+    },
+
+    /// Update preferences
+    UpdatePreferences {
+        /// Person's ID
+        person_id: Uuid,
+        /// Preferences
+        preferences: PreferencesComponent,
+    },
+
+    /// Update behavioral data
+    UpdateBehavioralData {
+        /// Person's ID
+        person_id: Uuid,
+        /// Behavioral data
+        behavioral: BehavioralComponent,
+    },
+
+    /// Update segmentation
+    UpdateSegmentation {
+        /// Person's ID
+        person_id: Uuid,
+        /// Segmentation
+        segmentation: SegmentationComponent,
+    },
+
+    /// Add biometric data
+    AddBiometricData {
+        /// Person's ID
+        person_id: Uuid,
+        /// Biometric component
+        biometric: BiometricComponent,
+    },
+
+    /// Add a generic component
+    AddComponent {
+        /// Person's ID
+        person_id: Uuid,
+        /// Component type name
+        component_type: String,
+        /// Component data as JSON
+        component_data: serde_json::Value,
+        /// Who is adding this
+        added_by: String,
+        /// Reason for adding
+        reason: Option<String>,
+    },
+
+    /// Remove a component by type
+    RemoveComponent {
+        /// Person's ID
+        person_id: Uuid,
+        /// Component type to remove
+        component_type: String,
+        /// Who is removing this
+        removed_by: String,
+        /// Reason for removal
+        reason: Option<String>,
+    },
 }
 
 

@@ -6,7 +6,40 @@ use std::collections::HashMap;
 use std::any::Any;
 use uuid::Uuid;
 
-/// Basic identity information
+// Component modules
+pub mod name;
+pub mod physical;
+pub mod social;
+pub mod behavioral;
+
+// Re-export all component types
+pub use name::{
+    NameComponent, NameOrder, AlternativeNamesComponent, AlternativeName,
+    AlternativeNameType, NamePeriod,
+};
+
+pub use physical::{
+    PhysicalAttributesComponent, Build, VisionCorrection,
+    DistinguishingMarksComponent, DistinguishingMark, MarkType,
+    BiometricComponent, BiometricHash,
+    MedicalIdentityComponent, BloodType,
+};
+
+pub use social::{
+    RelationshipComponent, Relationship, RelationshipType, RelationshipStatus,
+    SocialMediaComponent, SocialMediaProfile, SocialPlatform, PrivacySetting,
+    SocialMetrics, InterestsComponent, InterestCategory, Interest, InterestProfile,
+};
+
+pub use behavioral::{
+    PreferencesComponent, CommunicationPreferences, ContactChannel, ChannelSettings,
+    ContactTimePreference, FrequencyPreference, ProductPreference, ContentPreferences,
+    ContentType, ContentFormat, ComplexityLevel, PrivacyPreferences,
+    BehavioralComponent, PurchaseBehavior, EngagementPatterns, InteractionSummary,
+    PredictiveScores, SegmentationComponent, CustomerSegment, LifecycleStage, ValueTier,
+};
+
+/// Basic identity information (legacy - consider using NameComponent instead)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IdentityComponent {
     /// Legal name

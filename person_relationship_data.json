@@ -1,0 +1,45 @@
+{
+  "nodes": [
+    {
+      "id": "b8df68ed-d73e-4b65-a004-6799dd90ccf1",
+      "name": "Victoria Sterling",
+      "role": "CEO",
+      "category": "executive"
+    },
+    {
+      "id": "3cb8bc61-737b-4da2-80d5-eeb33826a9f6",
+      "name": "Marcus Chen",
+      "role": "CTO",
+      "category": "executive"
+    },
+    {
+      "id": "71debfbc-09f9-40cd-8463-ad412d1e186e",
+      "name": "TechCorp",
+      "role": "VIP Customer",
+      "category": "customer"
+    },
+    {
+      "id": "424d7a85-63bf-48e4-a887-7cc46bac4fad",
+      "name": "Alice Wong",
+      "role": "Lead Developer",
+      "category": "employee"
+    }
+  ],
+  "edges": [
+    {
+      "from": "b8df68ed-d73e-4b65-a004-6799dd90ccf1",
+      "to": "3cb8bc61-737b-4da2-80d5-eeb33826a9f6",
+      "relationship": "manages"
+    },
+    {
+      "from": "3cb8bc61-737b-4da2-80d5-eeb33826a9f6",
+      "to": "424d7a85-63bf-48e4-a887-7cc46bac4fad",
+      "relationship": "manages"
+    },
+    {
+      "from": "b8df68ed-d73e-4b65-a004-6799dd90ccf1",
+      "to": "71debfbc-09f9-40cd-8463-ad412d1e186e",
+      "relationship": "business_relationship"
+    }
+  ]
+}

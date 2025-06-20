@@ -8,6 +8,7 @@ use cim_domain::{Component, ComponentStorage};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+
 /// Person aggregate - represents an individual with composable components
 #[derive(Debug, Clone)]
 pub struct Person {
@@ -41,9 +42,11 @@ pub struct ComponentMetadata {
     pub reason: Option<String>,
 }
 
+
+
 impl Person {
     /// Create a new person with basic identity
-    pub fn new(id: EntityId<PersonMarker>, identity: IdentityComponent) -> Self {
+    pub fn new(id: EntityId<PersonMarker>, identity: crate::value_objects::IdentityComponent) -> Self {
         let mut components = ComponentStorage::new();
         components.add(identity).unwrap();
 
@@ -119,9 +122,24 @@ impl Person {
         self.components.has::<C>()
     }
 
+    /// Check if person has a component type by string name
+    pub fn has_component_type(&self, component_type: &str) -> bool {
+        self.component_metadata.contains_key(component_type)
+    }
+
     /// Get all component types
     pub fn component_types(&self) -> Vec<String> {
         self.component_metadata.keys().cloned().collect()
+    }
+
+    /// Get the person's ID
+    pub fn id(&self) -> EntityId<PersonMarker> {
+        self.entity.id
+    }
+
+    /// Get the number of components
+    pub fn component_count(&self) -> usize {
+        self.component_metadata.len()
     }
 }
 
@@ -147,7 +165,10 @@ pub use crate::value_objects::{
     IdentityComponent, ContactComponent, EmailAddress, PhoneNumber,
     EmploymentComponent, PositionComponent, SkillsComponent,
     SkillProficiency, Certification, Education, AccessComponent,
-    ExternalIdentifiersComponent
+    ExternalIdentifiersComponent, NameComponent, AlternativeNamesComponent,
+    PhysicalAttributesComponent, DistinguishingMarksComponent, BiometricComponent,
+    MedicalIdentityComponent, RelationshipComponent, SocialMediaComponent,
+    InterestsComponent, PreferencesComponent, BehavioralComponent, SegmentationComponent
 };
 
 // Re-export person ID type

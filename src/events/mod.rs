@@ -117,6 +117,176 @@ pub enum PersonEvent {
         /// When added
         added_at: DateTime<Utc>,
     },
+
+    // New CRM-specific events
+
+    /// Name was updated
+    NameUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old name (if any)
+        old_name: Option<NameComponent>,
+        /// New name
+        new_name: NameComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Alternative names were added
+    AlternativeNamesAdded {
+        /// Person's ID
+        person_id: Uuid,
+        /// Alternative names
+        alternative_names: AlternativeNamesComponent,
+        /// When added
+        added_at: DateTime<Utc>,
+    },
+
+    /// Physical attributes were updated
+    PhysicalAttributesUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old attributes (if any)
+        old_attributes: Option<PhysicalAttributesComponent>,
+        /// New attributes
+        new_attributes: PhysicalAttributesComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Distinguishing marks were added
+    DistinguishingMarksAdded {
+        /// Person's ID
+        person_id: Uuid,
+        /// Marks
+        marks: DistinguishingMarksComponent,
+        /// When added
+        added_at: DateTime<Utc>,
+    },
+
+    /// Medical identity was updated
+    MedicalIdentityUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old medical identity (if any)
+        old_medical: Option<MedicalIdentityComponent>,
+        /// New medical identity
+        new_medical: MedicalIdentityComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Relationships were updated
+    RelationshipsUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old relationships (if any)
+        old_relationships: Option<RelationshipComponent>,
+        /// New relationships
+        new_relationships: RelationshipComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Social media was updated
+    SocialMediaUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old social media (if any)
+        old_social_media: Option<SocialMediaComponent>,
+        /// New social media
+        new_social_media: SocialMediaComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Interests were updated
+    InterestsUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old interests (if any)
+        old_interests: Option<InterestsComponent>,
+        /// New interests
+        new_interests: InterestsComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Preferences were updated
+    PreferencesUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old preferences (if any)
+        old_preferences: Option<PreferencesComponent>,
+        /// New preferences
+        new_preferences: PreferencesComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Behavioral data was updated
+    BehavioralDataUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old behavioral data (if any)
+        old_behavioral: Option<BehavioralComponent>,
+        /// New behavioral data
+        new_behavioral: BehavioralComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Segmentation was updated
+    SegmentationUpdated {
+        /// Person's ID
+        person_id: Uuid,
+        /// Old segmentation (if any)
+        old_segmentation: Option<SegmentationComponent>,
+        /// New segmentation
+        new_segmentation: SegmentationComponent,
+        /// When updated
+        updated_at: DateTime<Utc>,
+    },
+
+    /// Biometric data was added
+    BiometricDataAdded {
+        /// Person's ID
+        person_id: Uuid,
+        /// Biometric data
+        biometric: BiometricComponent,
+        /// When added
+        added_at: DateTime<Utc>,
+    },
+
+    /// Generic component was added
+    ComponentAdded {
+        /// Person's ID
+        person_id: Uuid,
+        /// Component type
+        component_type: String,
+        /// Component data
+        component_data: serde_json::Value,
+        /// Who added it
+        added_by: String,
+        /// Reason
+        reason: Option<String>,
+        /// When added
+        added_at: DateTime<Utc>,
+    },
+
+    /// Component was removed
+    ComponentRemoved {
+        /// Person's ID
+        person_id: Uuid,
+        /// Component type
+        component_type: String,
+        /// Who removed it
+        removed_by: String,
+        /// Reason
+        reason: Option<String>,
+        /// When removed
+        removed_at: DateTime<Utc>,
+    },
 }
 
 impl PersonEvent {
@@ -133,6 +303,20 @@ impl PersonEvent {
             PersonEvent::SkillsAdded { person_id, .. } => *person_id,
             PersonEvent::AccessGranted { person_id, .. } => *person_id,
             PersonEvent::ExternalIdentifierAdded { person_id, .. } => *person_id,
+            PersonEvent::NameUpdated { person_id, .. } => *person_id,
+            PersonEvent::AlternativeNamesAdded { person_id, .. } => *person_id,
+            PersonEvent::PhysicalAttributesUpdated { person_id, .. } => *person_id,
+            PersonEvent::DistinguishingMarksAdded { person_id, .. } => *person_id,
+            PersonEvent::MedicalIdentityUpdated { person_id, .. } => *person_id,
+            PersonEvent::RelationshipsUpdated { person_id, .. } => *person_id,
+            PersonEvent::SocialMediaUpdated { person_id, .. } => *person_id,
+            PersonEvent::InterestsUpdated { person_id, .. } => *person_id,
+            PersonEvent::PreferencesUpdated { person_id, .. } => *person_id,
+            PersonEvent::BehavioralDataUpdated { person_id, .. } => *person_id,
+            PersonEvent::SegmentationUpdated { person_id, .. } => *person_id,
+            PersonEvent::BiometricDataAdded { person_id, .. } => *person_id,
+            PersonEvent::ComponentAdded { person_id, .. } => *person_id,
+            PersonEvent::ComponentRemoved { person_id, .. } => *person_id,
         }
     }
 
@@ -149,6 +333,20 @@ impl PersonEvent {
             PersonEvent::SkillsAdded { .. } => "SkillsAdded",
             PersonEvent::AccessGranted { .. } => "AccessGranted",
             PersonEvent::ExternalIdentifierAdded { .. } => "ExternalIdentifierAdded",
+            PersonEvent::NameUpdated { .. } => "NameUpdated",
+            PersonEvent::AlternativeNamesAdded { .. } => "AlternativeNamesAdded",
+            PersonEvent::PhysicalAttributesUpdated { .. } => "PhysicalAttributesUpdated",
+            PersonEvent::DistinguishingMarksAdded { .. } => "DistinguishingMarksAdded",
+            PersonEvent::MedicalIdentityUpdated { .. } => "MedicalIdentityUpdated",
+            PersonEvent::RelationshipsUpdated { .. } => "RelationshipsUpdated",
+            PersonEvent::SocialMediaUpdated { .. } => "SocialMediaUpdated",
+            PersonEvent::InterestsUpdated { .. } => "InterestsUpdated",
+            PersonEvent::PreferencesUpdated { .. } => "PreferencesUpdated",
+            PersonEvent::BehavioralDataUpdated { .. } => "BehavioralDataUpdated",
+            PersonEvent::SegmentationUpdated { .. } => "SegmentationUpdated",
+            PersonEvent::BiometricDataAdded { .. } => "BiometricDataAdded",
+            PersonEvent::ComponentAdded { .. } => "ComponentAdded",
+            PersonEvent::ComponentRemoved { .. } => "ComponentRemoved",
         }
     }
 
@@ -165,6 +363,20 @@ impl PersonEvent {
             PersonEvent::SkillsAdded { .. } => "people.person.skills_added.v1",
             PersonEvent::AccessGranted { .. } => "people.person.access_granted.v1",
             PersonEvent::ExternalIdentifierAdded { .. } => "people.person.external_identifier_added.v1",
+            PersonEvent::NameUpdated { .. } => "people.person.name_updated.v1",
+            PersonEvent::AlternativeNamesAdded { .. } => "people.person.alternative_names_added.v1",
+            PersonEvent::PhysicalAttributesUpdated { .. } => "people.person.physical_attributes_updated.v1",
+            PersonEvent::DistinguishingMarksAdded { .. } => "people.person.distinguishing_marks_added.v1",
+            PersonEvent::MedicalIdentityUpdated { .. } => "people.person.medical_identity_updated.v1",
+            PersonEvent::RelationshipsUpdated { .. } => "people.person.relationships_updated.v1",
+            PersonEvent::SocialMediaUpdated { .. } => "people.person.social_media_updated.v1",
+            PersonEvent::InterestsUpdated { .. } => "people.person.interests_updated.v1",
+            PersonEvent::PreferencesUpdated { .. } => "people.person.preferences_updated.v1",
+            PersonEvent::BehavioralDataUpdated { .. } => "people.person.behavioral_data_updated.v1",
+            PersonEvent::SegmentationUpdated { .. } => "people.person.segmentation_updated.v1",
+            PersonEvent::BiometricDataAdded { .. } => "people.person.biometric_data_added.v1",
+            PersonEvent::ComponentAdded { .. } => "people.person.component_added.v1",
+            PersonEvent::ComponentRemoved { .. } => "people.person.component_removed.v1",
         }.to_string()
     }
 }

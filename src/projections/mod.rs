@@ -5,7 +5,7 @@ use crate::{
     events::PersonEvent,
     value_objects::*,
 };
-use cim_domain::{DomainResult, DomainError, AggregateRoot};
+use cim_domain::{DomainResult, DomainError};
 use serde::{Deserialize, Serialize};
 
 /// Person projection for read models
@@ -126,7 +126,7 @@ impl EmployeeView {
         let position = person.get_component::<PositionComponent>();
 
         Ok(Self {
-            person_id: person.id(),
+            person_id: person.id().into(),
             name: identity.preferred_name.as_ref()
                 .unwrap_or(&identity.legal_name)
                 .clone(),
@@ -163,6 +163,35 @@ pub struct LdapProjection {
 }
 
 impl LdapProjection {
+    /// Create LDAP projection from PersonProjection
+    pub fn from_projection(projection: &PersonProjection, base_dn: &str) -> Self {
+        // Parse name (simple split for now)
+        let name_parts: Vec<&str> = projection.name.split_whitespace().collect();
+        let given_name = name_parts.first().unwrap_or(&"").to_string();
+        let sn = name_parts.last().unwrap_or(&"").to_string();
+
+        let cn = projection.name.clone();
+        let dn = format!("cn={cn},ou=people,{base_dn}");
+
+        let mail = projection.emails.iter()
+            .map(|e| e.email.clone())
+            .collect();
+
+        let telephone_number = projection.phones.iter()
+            .map(|p| p.number.clone())
+            .collect();
+
+        Self {
+            dn,
+            uid: projection.person_id.to_string(),
+            cn,
+            sn,
+            given_name,
+            mail,
+            telephone_number,
+            object_class: vec!["inetOrgPerson".to_string(), "person".to_string()],
+        }
+    }
     /// Create LDAP projection from person
     pub fn from_person(person: &Person, base_dn: &str) -> DomainResult<Self> {
         let identity = person.get_component::<IdentityComponent>()
