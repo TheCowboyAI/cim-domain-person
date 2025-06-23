@@ -11,6 +11,7 @@ use cim_domain::DomainResult;
 use std::collections::HashMap;
 use chrono::Datelike;
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 
 /// Person read model for queries
 pub struct PersonReadModel {
@@ -511,7 +512,7 @@ impl PersonReadModel {
 }
 
 /// Query result types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PersonQueryResult {
     /// Single person projection
     Person(PersonProjection),

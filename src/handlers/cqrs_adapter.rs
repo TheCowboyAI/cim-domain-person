@@ -6,7 +6,7 @@
 
 use cim_domain::{
     Command, CommandEnvelope, CommandHandler, CommandAcknowledgment, CommandStatus,
-    Query, QueryEnvelope, QueryHandler, QueryAcknowledgment, QueryStatus,
+    Query, QueryEnvelope, QueryHandler, QueryResponse,
     EntityId, DomainResult,
 };
 use serde::{Deserialize, Serialize};
@@ -90,7 +90,7 @@ impl PersonQueryHandlerAdapter {
 }
 
 impl QueryHandler<PersonQuery> for PersonQueryHandlerAdapter {
-    fn handle(&self, envelope: QueryEnvelope<PersonQuery>) -> QueryAcknowledgment {
+    fn handle(&self, envelope: QueryEnvelope<PersonQuery>) -> QueryResponse {
         let query_id = envelope.id;
         let correlation_id = envelope.identity.correlation_id.clone();
         
@@ -101,17 +101,21 @@ impl QueryHandler<PersonQuery> for PersonQueryHandlerAdapter {
         });
         
         match result {
-            Ok(_) => QueryAcknowledgment {
-                query_id,
+            Ok(value) => QueryResponse {
+                query_id: envelope.identity.message_id,
                 correlation_id,
-                status: QueryStatus::Accepted,
-                reason: None,
+                result: serde_json::to_value(value).unwrap_or_else(|e| {
+                    serde_json::json!({
+                        "error": format!("Failed to serialize result: {}", e)
+                    })
+                }),
             },
-            Err(error) => QueryAcknowledgment {
-                query_id,
+            Err(error) => QueryResponse {
+                query_id: envelope.identity.message_id,
                 correlation_id,
-                status: QueryStatus::Rejected,
-                reason: Some(error.to_string()),
+                result: serde_json::json!({
+                    "error": error.to_string()
+                }),
             },
         }
     }
