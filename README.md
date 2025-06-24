@@ -1,420 +1,386 @@
-# CIM Person Domain
+# Person Domain
 
-The Person domain provides a comprehensive, component-based system for representing people in various contexts, with a special focus on Customer Relationship Management (CRM) functionality.
+The Person domain provides a comprehensive event-driven system for managing people and their relationships within the CIM (Composable Information Machine) architecture.
 
 ## Overview
 
-The Person domain uses a flexible component-based architecture that allows you to compose person entities with different sets of components to represent various concepts like Employee, Customer, Partner, or any custom concept your business requires.
+The Person domain follows Domain-Driven Design principles with a pure event-sourcing approach. All state changes flow through commands that produce events, which are then applied to aggregates. There are no direct mutations or CRUD operations - everything is event-driven.
 
-## Core Components
+## Event Replay and Event Sourcing
 
-### Name Components
+The Person domain fully supports event sourcing with the following capabilities:
 
-- **NameComponent**: Comprehensive name handling supporting:
-  - Titles (Dr., Prof., etc.)
-  - Honorifics (Mr., Mrs., Ms., Mx., etc.)
-  - Multiple given names
-  - Multiple middle names (preserving order)
-  - Multiple family names (e.g., Spanish naming)
-  - Maternal family names
-  - Generational suffixes (Jr., Sr., III, etc.)
-  - Professional suffixes (MD, PhD, etc.)
-  - Preferred names/nicknames
-  - Cultural naming conventions (Western, Eastern, etc.)
-
-- **AlternativeNamesComponent**: Track previous names, aliases, professional names, etc.
-
-### Physical Components
-
-- **PhysicalAttributesComponent**: Height, weight, hair color, eye color, etc.
-- **DistinguishingMarksComponent**: Scars, tattoos, birthmarks, etc.
-- **BiometricComponent**: Privacy-preserving biometric data (hashes only)
-- **MedicalIdentityComponent**: Blood type, allergies, emergency medical info
-
-### Social Components
-
-- **RelationshipComponent**: Family, professional, and social relationships
-- **SocialMediaComponent**: Social media profiles and metrics
-- **InterestsComponent**: Hobbies, interests, and activities
-
-### Behavioral Components (CRM-focused)
-
-- **PreferencesComponent**: Communication, product, content, and privacy preferences
-- **BehavioralComponent**: Purchase behavior, engagement patterns, predictive scores
-- **SegmentationComponent**: Customer segments, lifecycle stages, value tiers
-
-### Professional Components
-
-- **EmploymentComponent**: Current employment information
-- **PositionComponent**: Role and responsibilities
-- **SkillsComponent**: Skills, certifications, and education
-- **AccessComponent**: Roles, permissions, and access levels
-
-### Contact Components
-
-- **ContactComponent**: Email addresses, phone numbers, physical addresses
-- **ExternalIdentifiersComponent**: IDs from external systems (LDAP, OAuth, etc.)
-
-## Usage Examples
-
-### Creating a Customer
-
+### Event Stream Replay
 ```rust
-use cim_domain_person::*;
+// Replay an entire event stream to reconstruct a person
+let events = vec![
+    PersonEvent::PersonCreated(created_event),
+    PersonEvent::EmailAdded(email_event),
+    PersonEvent::PhoneAdded(phone_event),
+];
 
-// Create a customer with name, contact, and preferences
-let name = NameComponent::simple("Jane".to_string(), "Doe".to_string());
+let person = Person::replay_events(events)?;
+```
 
-let contact = ContactComponent {
-    emails: vec![EmailAddress {
-        email: "jane@example.com".to_string(),
-        email_type: "personal".to_string(),
-        is_primary: true,
-        is_verified: true,
-    }],
-    phones: vec![],
-    addresses: vec![],
-};
+### Snapshot Support
+```rust
+// Create a snapshot and replay only new events
+let snapshot = Person::replay_events(initial_events)?;
+let snapshot_version = snapshot.version();
 
-let preferences = PreferencesComponent {
-    communication: CommunicationPreferences {
-        preferred_channel: ContactChannel::Email,
-        frequency_preference: FrequencyPreference::Weekly,
-        // ... other preferences
-    },
-    // ... other preference categories
-};
-
-let customer = PersonCompositionService::create_customer(
-    name,
-    contact,
-    preferences,
+// Later, replay from snapshot
+let person = Person::replay_from_snapshot(
+    snapshot,
+    new_events,
+    snapshot_version
 )?;
 ```
 
-### Creating an Employee
-
+### Event Store Integration
 ```rust
-let employee = PersonCompositionService::create_employee(
-    name,
-    employment,
-    contact,
-)?;
+// Use the PersonRepository for event store operations
+let repo = PersonRepository::new(event_store);
 
-// Add additional components as needed
-PersonCompositionService::add_physical_attributes(
-    &mut employee,
-    physical_attributes,
-    "hr_system",
-    Some("ID badge photo".to_string()),
-)?;
+// Save person with events
+repo.save(&person, events, expected_version).await?;
+
+// Load person by replaying events
+let person = repo.load(person_id).await?;
 ```
 
-### Building Views
-
-Different views can be built from person entities based on their components:
-
-```rust
-// Check if person can be viewed as employee
-if EmployeeViewBuilder::can_build(&person) {
-    let employee_view = EmployeeViewBuilder::build(&person)?;
-}
-
-// Build customer view
-if CustomerViewBuilder::can_build(&person) {
-    let customer_view = CustomerViewBuilder::build(&person)?;
-}
-```
-
-## Component Composition
-
-The power of this system lies in its flexibility. You can:
-
-1. **Start Simple**: Create a person with just a name
-2. **Add Components**: Progressively add components as you learn more
-3. **Create Views**: Build different views based on available components
-4. **Track Metadata**: Know when and why each component was added
-
-Example of progressive enhancement:
-
-```rust
-// Start with basic person
-let mut person = PersonCompositionService::create_basic_person(name)?;
-
-// Add components as information becomes available
-person.add_component(contact_info, "crm_system", Some("Initial contact"))?;
-person.add_component(preferences, "user_portal", Some("User preferences set"))?;
-person.add_component(behavioral_data, "analytics", Some("Behavioral analysis"))?;
-```
-
-## Design Principles
-
-1. **Component Immutability**: Components are immutable once added. To change, remove and re-add.
-2. **Domain Alignment**: Components represent business concepts, not technical constructs.
-3. **Progressive Enhancement**: Start simple and add complexity as needed.
-4. **Audit Trail**: Track who added what component and when.
-5. **Type Safety**: Leverage Rust's type system to prevent component misuse.
-
-## Integration with Other Domains
-
-The Person domain integrates seamlessly with other CIM domains:
-
-- **Organization**: Link people to organizations via employment
-- **Location**: Reference physical addresses
-- **Workflow**: Assign people to workflow tasks
-- **Identity**: Manage authentication and authorization
-
-## Testing
-
-Run the comprehensive test suite:
-
-```bash
-cargo test
-```
-
-Run the example to see the system in action:
-
-```bash
-cargo run --example crm_person_composition
-```
-
-## Future Enhancements
-
-- Additional component types based on business needs
-- Integration with external CRM systems
-- Advanced segmentation algorithms
-- Machine learning for predictive scoring
-- GDPR compliance tools for data management
-
-## Key Concepts
-
-### Person
-An individual identity with:
-- **Identity**: Unique identifier and core attributes
-- **Profile**: Personal information and preferences
-- **Credentials**: Authentication and verification data
-- **Memberships**: Organizational affiliations
-- **Permissions**: Access rights and capabilities
-- **Privacy**: Control over data sharing
-
-### Person Components
-- **Basic Information**: Name, contact details
-- **Extended Profile**: Biography, skills, interests
-- **Authentication**: Credentials and MFA settings
-- **Preferences**: System and UI preferences
-- **Privacy Settings**: Data visibility controls
-- **Activity History**: Audit trail of actions
-
-### Identity Lifecycle
-```
-Registration → Verification → Active → Updates → Deactivation
-      ↓             ↓           ↓         ↓           ↓
-   Events       Events      Events    Events      Events
-```
+The event store integration includes:
+- Automatic snapshot creation based on configurable frequency
+- Optimistic concurrency control with version checking
+- Support for loading events after a specific version
+- In-memory event store for testing
 
 ## Architecture
 
-### Aggregates
+### Domain Model
 
-#### Person Aggregate
 ```rust
 pub struct Person {
     pub id: PersonId,
-    pub username: Username,
-    pub email: Email,
-    pub profile: PersonProfile,
-    pub status: PersonStatus,
-    pub credentials: Credentials,
-    pub preferences: UserPreferences,
-    pub privacy_settings: PrivacySettings,
+    pub name: PersonName,
+    pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub last_login: Option<DateTime<Utc>>,
+    
+    // Contact information
+    pub emails: HashMap<String, EmailAddress>,
+    pub phones: HashMap<String, PhoneNumber>,
+    pub addresses: HashMap<AddressType, PhysicalAddress>,
+    
+    // Professional
+    pub employments: HashMap<Uuid, Employment>,
+    pub skills: HashMap<String, Skill>,
+    pub certifications: Vec<Certification>,
+    pub education: Vec<Education>,
+    
+    // Relationships
+    pub relationships: HashMap<Uuid, Relationship>,
+    
+    // Social & Business
+    pub social_profiles: HashMap<SocialPlatform, SocialProfile>,
+    pub customer_segment: Option<CustomerSegment>,
+    pub behavioral_data: Option<BehavioralData>,
+    pub communication_preferences: Option<CommunicationPreferences>,
+    pub privacy_preferences: Option<PrivacyPreferences>,
+    
+    // Metadata
+    pub tags: Vec<Tag>,
+    pub custom_attributes: HashMap<String, CustomAttribute>,
+    
+    // Merge tracking
+    pub merged_into: Option<PersonId>,
+    pub merge_status: MergeStatus,
 }
 ```
 
-#### PersonProfile
+### Commands → Events Flow
+
+The Person domain processes commands that generate events. Events are immutable facts about what happened.
+
+#### Core Commands
+
 ```rust
-pub struct PersonProfile {
-    pub display_name: String,
-    pub full_name: Option<FullName>,
-    pub avatar_url: Option<Url>,
-    pub bio: Option<String>,
-    pub timezone: String,
-    pub locale: String,
-    pub contact_info: ContactInfo,
-    pub social_links: Vec<SocialLink>,
-    pub skills: HashSet<Skill>,
-    pub interests: HashSet<Interest>,
+pub enum PersonCommand {
+    // Lifecycle
+    CreatePerson(CreatePerson),
+    DeactivatePerson(DeactivatePerson),
+    ReactivatePerson(ReactivatePerson),
+    MergePersons(MergePersons),
+    
+    // Identity
+    UpdateName(UpdateName),
+    
+    // Contact
+    AddEmail(AddEmail),
+    RemoveEmail(RemoveEmail),
+    VerifyEmail(VerifyEmail),
+    AddPhone(AddPhone),
+    RemovePhone(RemovePhone),
+    AddAddress(AddAddress),
+    RemoveAddress(RemoveAddress),
+    
+    // Professional
+    AddEmployment(AddEmployment),
+    UpdateEmployment(UpdateEmployment),
+    EndEmployment(EndEmployment),
+    AddSkill(AddSkill),
+    UpdateSkill(UpdateSkill),
+    RemoveSkill(RemoveSkill),
+    AddCertification(AddCertification),
+    AddEducation(AddEducation),
+    
+    // Relationships
+    AddRelationship(AddRelationship),
+    UpdateRelationship(UpdateRelationship),
+    EndRelationship(EndRelationship),
+    
+    // Social & Business
+    AddSocialProfile(AddSocialProfile),
+    UpdateSocialProfile(UpdateSocialProfile),
+    RemoveSocialProfile(RemoveSocialProfile),
+    SetCustomerSegment(SetCustomerSegment),
+    UpdateBehavioralData(UpdateBehavioralData),
+    SetCommunicationPreferences(SetCommunicationPreferences),
+    SetPrivacyPreferences(SetPrivacyPreferences),
+    
+    // Metadata
+    AddTag(AddTag),
+    RemoveTag(RemoveTag),
+    SetCustomAttribute(SetCustomAttribute),
 }
 ```
 
-#### Credentials
+#### Events Generated
+
+Each command produces one or more events that represent the state change:
+
 ```rust
-pub struct Credentials {
-    pub password_hash: Option<PasswordHash>,
-    pub mfa_settings: MfaSettings,
-    pub api_keys: Vec<ApiKey>,
-    pub oauth_tokens: HashMap<Provider, OAuthToken>,
-    pub recovery_codes: Vec<RecoveryCode>,
-    pub security_questions: Vec<SecurityQuestion>,
+pub enum PersonEvent {
+    // Lifecycle events
+    PersonCreated(PersonCreated),
+    PersonDeactivated(PersonDeactivated),
+    PersonReactivated(PersonReactivated),
+    PersonMergedInto(PersonMergedInto),
+    PersonsMerged(PersonsMerged),
+    
+    // Identity events
+    NameUpdated(NameUpdated),
+    
+    // Contact events
+    EmailAdded(EmailAdded),
+    EmailRemoved(EmailRemoved),
+    EmailVerified(EmailVerified),
+    PhoneAdded(PhoneAdded),
+    PhoneRemoved(PhoneRemoved),
+    AddressAdded(AddressAdded),
+    AddressRemoved(AddressRemoved),
+    
+    // And corresponding events for all other commands...
 }
 ```
 
-### Commands
+### Value Objects
 
-#### Identity Management
-- `RegisterPerson`: Create new person identity
-- `UpdateProfile`: Modify personal information
-- `ChangeUsername`: Update username
-- `DeactivatePerson`: Disable account
-- `ReactivatePerson`: Re-enable account
+Value objects are immutable and represent concepts without identity:
 
-#### Authentication
-- `ChangePassword`: Update password
-- `EnableMfa`: Activate multi-factor auth
-- `DisableMfa`: Deactivate multi-factor auth
-- `GenerateApiKey`: Create API access key
-- `RevokeApiKey`: Remove API access key
+- **PersonName**: Comprehensive name handling with cultural support
+- **EmailAddress**: Email with verification status
+- **PhoneNumber**: Phone with country code and capabilities
+- **PhysicalAddress**: Structured address information
+- **Employment**: Organization affiliation and role
+- **Skill**: Skill with proficiency level
+- **Relationship**: Connection to another person
+- **SocialProfile**: Social media presence
+- **CustomerSegment**: Business categorization
+- **Tag**: Flexible categorization
 
-#### Profile Management
-- `UpdateContactInfo`: Modify contact details
-- `SetAvatar`: Update profile picture
-- `AddSkill`: Add skill to profile
-- `RemoveSkill`: Remove skill from profile
-- `UpdatePrivacySettings`: Change visibility
+## Event-Driven Patterns
 
-#### Membership Operations
-- `JoinOrganization`: Add org membership
-- `LeaveOrganization`: Remove membership
-- `UpdateRole`: Change org role
-- `AcceptInvitation`: Join via invite
-- `TransferOwnership`: Hand over responsibilities
+### Command Processing
 
-### Events
+```rust
+impl Person {
+    pub fn handle_command(&mut self, command: PersonCommand) -> Result<Vec<PersonEvent>, String> {
+        match command {
+            PersonCommand::AddEmail(cmd) => {
+                // Validate business rules
+                if self.emails.contains_key(&cmd.email.address) {
+                    return Err("Email already exists".to_string());
+                }
+                
+                // Generate event
+                let event = PersonEvent::EmailAdded(EmailAdded {
+                    person_id: self.id,
+                    email: cmd.email,
+                    primary: cmd.primary,
+                    added_at: Utc::now(),
+                });
+                
+                // Apply event to update state
+                self.apply_event(&event);
+                
+                Ok(vec![event])
+            }
+            // Other command handlers...
+        }
+    }
+}
+```
 
-All events published to NATS subjects under `person.events.*`:
+### Event Application
 
-#### Identity Events
-- `PersonRegistered`: New identity created
-- `PersonVerified`: Email/phone confirmed
-- `PersonUpdated`: Profile modified
-- `PersonDeactivated`: Account disabled
-- `PersonReactivated`: Account re-enabled
+```rust
+impl Person {
+    pub fn apply_event(&mut self, event: &PersonEvent) {
+        match event {
+            PersonEvent::EmailAdded(e) => {
+                self.emails.insert(e.email.address.clone(), e.email.clone());
+                if e.primary {
+                    self.primary_email = Some(e.email.address.clone());
+                }
+                self.updated_at = e.added_at;
+            }
+            // Other event handlers...
+        }
+    }
+}
+```
 
-#### Authentication Events
-- `PasswordChanged`: Credential updated
-- `MfaEnabled`: Two-factor activated
-- `MfaDisabled`: Two-factor deactivated
-- `LoginSuccessful`: Authentication success
-- `LoginFailed`: Authentication failure
+### Event Sourcing
 
-#### Profile Events
-- `ProfileUpdated`: Information changed
-- `AvatarChanged`: Picture updated
-- `SkillAdded`: New skill listed
-- `SkillRemoved`: Skill delisted
-- `PrivacyUpdated`: Settings changed
+All events are persisted to NATS JetStream with CID chains for integrity:
 
-#### Membership Events
-- `OrganizationJoined`: Added to org
-- `OrganizationLeft`: Removed from org
-- `RoleChanged`: Permissions updated
-- `InvitationAccepted`: Joined via invite
-- `OwnershipTransferred`: Responsibilities moved
+```rust
+// Events flow through NATS subjects
+person.events.created
+person.events.name_updated
+person.events.email_added
+person.events.relationship_added
+// etc.
+```
 
 ## Usage Examples
 
-### Register a New Person
-```rust
-use cim_domain_person::{RegisterPerson, PersonProfile, PrivacySettings};
+### Creating a Person
 
-let command = RegisterPerson {
+```rust
+// Create command
+let command = PersonCommand::CreatePerson(CreatePerson {
     person_id: PersonId::new(),
-    username: Username::try_from("alice.smith")?,
-    email: Email::try_from("alice@example.com")?,
-    password: PlainPassword::new("secure_password123!"),
-    profile: PersonProfile {
-        display_name: "Alice Smith".to_string(),
-        full_name: Some(FullName {
-            first: "Alice".to_string(),
-            middle: None,
-            last: "Smith".to_string(),
-        }),
-        timezone: "America/New_York".to_string(),
-        locale: "en-US".to_string(),
-        ..Default::default()
-    },
-    privacy_settings: PrivacySettings::default(),
-};
+    name: PersonName::new("John".to_string(), "Doe".to_string()),
+    source: "Registration".to_string(),
+});
 
-nats_client.publish("person.commands.register", &command).await?;
+// Process command to generate events
+let events = person.handle_command(command)?;
+
+// Events are published to NATS
+for event in events {
+    event_store.publish("person.events", &event).await?;
+}
 ```
 
-### Update Profile Information
+### Adding Contact Information
+
 ```rust
-use cim_domain_person::{UpdateProfile, ContactInfo, SocialLink};
-
-let command = UpdateProfile {
+// Add email
+let add_email = PersonCommand::AddEmail(AddEmail {
     person_id,
-    updates: ProfileUpdates {
-        display_name: Some("Alice S.".to_string()),
-        bio: Some("Software engineer passionate about distributed systems".to_string()),
-        contact_info: Some(ContactInfo {
-            phone: Some(PhoneNumber::try_from("+1-555-0123")?),
-            secondary_email: Some(Email::try_from("alice.work@company.com")?),
-            ..Default::default()
-        }),
-        social_links: Some(vec![
-            SocialLink::github("alice-smith"),
-            SocialLink::linkedin("alice-smith-dev"),
-        ]),
-        skills: Some(hashset!["Rust", "Distributed Systems", "Event Sourcing"]),
-    },
-};
+    email: EmailAddress::new("john@example.com".to_string()),
+    primary: true,
+});
 
-nats_client.publish("person.commands.update_profile", &command).await?;
+// Add phone
+let add_phone = PersonCommand::AddPhone(AddPhone {
+    person_id,
+    phone: PhoneNumber::with_country("555-0123".to_string(), "1".to_string()),
+    primary: true,
+});
+
+// Process commands
+let email_events = person.handle_command(add_email)?;
+let phone_events = person.handle_command(add_phone)?;
 ```
 
-### Enable Multi-Factor Authentication
+### Managing Relationships
+
 ```rust
-use cim_domain_person::{EnableMfa, MfaMethod, TotpSetup};
-
-let command = EnableMfa {
+// Add relationship
+let command = PersonCommand::AddRelationship(AddRelationship {
     person_id,
-    method: MfaMethod::Totp,
-    setup_data: MfaSetupData::Totp(TotpSetup {
-        secret: generate_totp_secret(),
-        issuer: "CIM Platform".to_string(),
-        account_name: username.to_string(),
-    }),
-    backup_codes: generate_backup_codes(8),
-};
+    relationship: Relationship {
+        person_id: other_person_id,
+        relationship_type: RelationshipType::Colleague,
+        status: RelationshipStatus::Active,
+        start_date: Utc::now().date_naive(),
+        end_date: None,
+        notes: Some("Met at conference".to_string()),
+    },
+});
 
-nats_client.publish("person.commands.enable_mfa", &command).await?;
+let events = person.handle_command(command)?;
 ```
 
-### Manage Privacy Settings
+### Person Merging
+
+When duplicate persons are identified, they can be merged:
+
 ```rust
-use cim_domain_person::{UpdatePrivacySettings, DataVisibility, ConsentSettings};
+let merge_command = PersonCommand::MergePersons(MergePersons {
+    source_person_id: duplicate_id,
+    target_person_id: primary_id,
+    reason: MergeReason::DuplicateIdentity,
+});
 
-let command = UpdatePrivacySettings {
-    person_id,
-    settings: PrivacySettings {
-        profile_visibility: DataVisibility::Organization, // Only org members
-        email_visibility: DataVisibility::Private,        // Only self
-        activity_visibility: DataVisibility::Contacts,    // Friends only
-        search_indexing: false,                          // Not searchable
-        data_retention: RetentionPeriod::Days(365),      // 1 year
-        consent: ConsentSettings {
-            marketing_emails: false,
-            usage_analytics: true,
-            data_sharing: false,
-        },
-    },
-};
+// This generates two events:
+// 1. PersonMergedInto - on the source person
+// 2. PersonsMerged - on the target person
+```
 
-nats_client.publish("person.commands.update_privacy", &command).await?;
+## Projections
+
+Read models are built from events for efficient querying:
+
+### PersonView
+Basic information for display:
+```rust
+pub struct PersonView {
+    pub id: PersonId,
+    pub name: PersonName,
+    pub primary_email: Option<String>,
+    pub primary_phone: Option<String>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+```
+
+### ContactView
+Complete contact information:
+```rust
+pub struct ContactView {
+    pub person_id: PersonId,
+    pub emails: HashMap<String, EmailAddress>,
+    pub phones: HashMap<String, PhoneNumber>,
+    pub addresses: HashMap<AddressType, PhysicalAddress>,
+}
+```
+
+### CustomerView
+Business-focused view:
+```rust
+pub struct CustomerView {
+    pub person_id: PersonId,
+    pub name: String,
+    pub segment: Option<SegmentType>,
+    pub value_tier: Option<ValueTier>,
+    pub lifetime_value: Option<f32>,
+    pub engagement_score: Option<f32>,
+}
 ```
 
 ## Integration Points
@@ -423,266 +389,32 @@ nats_client.publish("person.commands.update_privacy", &command).await?;
 - Commands: `person.commands.*`
 - Events: `person.events.*`
 - Queries: `person.queries.*`
-- Auth: `person.auth.*`
 
 ### Cross-Domain Integration
-
-#### With Identity Domain
-- Unified identity management
-- Cross-domain authentication
-- Permission inheritance
-- Session management
-
-#### With Organization Domain
-- Membership management
-- Role assignments
-- Permission delegation
-- Organizational profiles
-
-#### With Policy Domain
-- Access control enforcement
-- Privacy policy compliance
-- Consent management
-- Audit requirements
-
-#### With Document Domain
-- Document ownership
-- Access permissions
-- Sharing controls
-- Activity tracking
-
-### External Integration
-
-#### Authentication Providers
-- OAuth2/OIDC providers
-- SAML identity providers
-- LDAP/Active Directory
-- Social login (Google, GitHub, etc.)
-
-#### Communication Services
-- Email verification
-- SMS verification
-- Push notifications
-- WebAuthn/FIDO2
-
-## Privacy and Security
-
-### Data Protection
-```rust
-pub struct PrivacyControls {
-    pub encryption: EncryptionSettings,
-    pub anonymization: AnonymizationRules,
-    pub retention: RetentionPolicies,
-    pub audit_trail: AuditSettings,
-}
-```
-
-### GDPR Compliance
-- Right to access (data export)
-- Right to rectification (update)
-- Right to erasure (delete)
-- Right to portability
-- Consent management
-- Data minimization
-
-### Security Features
-- Password complexity rules
-- Account lockout policies
-- Session management
-- API key rotation
-- Audit logging
-- Anomaly detection
-
-## Authentication Flows
-
-### Password-Based
-```
-Login Request → Validate Credentials → Check MFA → Create Session → Return Token
-       ↓                ↓                 ↓            ↓              ↓
-    Events           Events            Events       Events         Events
-```
-
-### OAuth2/OIDC
-```
-Auth Request → Redirect to Provider → Callback → Validate Token → Create Session
-      ↓                ↓                 ↓            ↓               ↓
-   Events           External          Events       Events          Events
-```
-
-### API Key
-```
-Request with Key → Validate Key → Check Permissions → Process Request
-        ↓               ↓                ↓                  ↓
-     Events          Events           Events             Events
-```
-
-## User Preferences
-
-### System Preferences
-```rust
-pub struct SystemPreferences {
-    pub theme: Theme,
-    pub language: LanguageCode,
-    pub date_format: DateFormat,
-    pub time_format: TimeFormat,
-    pub notifications: NotificationSettings,
-}
-```
-
-### UI Preferences
-```rust
-pub struct UIPreferences {
-    pub dashboard_layout: DashboardConfig,
-    pub default_views: HashMap<Context, ViewConfig>,
-    pub shortcuts: HashMap<Action, KeyBinding>,
-    pub accessibility: AccessibilitySettings,
-}
-```
-
-## Activity Tracking
-
-### Audit Events
-- Login attempts
-- Profile changes
-- Permission changes
-- Data access
-- API usage
-- Security events
-
-### Analytics
-```rust
-pub struct UserAnalytics {
-    pub login_frequency: TimeSeriesData,
-    pub feature_usage: HashMap<Feature, UsageStats>,
-    pub api_calls: HashMap<Endpoint, CallStats>,
-    pub error_rates: HashMap<ErrorType, Count>,
-}
-```
-
-## Performance Optimization
-
-### Caching Strategy
-- Session cache (Redis)
-- Permission cache (LRU)
-- Profile cache (CDN)
-- Query result cache
-
-### Database Indexes
-- Username (unique)
-- Email (unique)
-- Organization memberships
-- Last login time
-- Search fields
-
-## Configuration
-
-### Environment Variables
-```bash
-# Authentication
-PERSON_PASSWORD_MIN_LENGTH=12
-PERSON_PASSWORD_REQUIRE_SPECIAL=true
-PERSON_SESSION_TIMEOUT_MINUTES=30
-PERSON_MAX_LOGIN_ATTEMPTS=5
-
-# Privacy
-PERSON_DEFAULT_PRIVACY_LEVEL=organization
-PERSON_ALLOW_PUBLIC_PROFILES=false
-PERSON_GDPR_MODE=true
-
-# Security
-PERSON_MFA_REQUIRED=false
-PERSON_API_KEY_ROTATION_DAYS=90
-PERSON_AUDIT_RETENTION_DAYS=365
-
-# Integration
-PERSON_OAUTH_PROVIDERS=google,github
-PERSON_LDAP_ENABLED=false
-```
+- **Organization**: Employment relationships
+- **Location**: Physical addresses
+- **Identity**: Authentication and authorization
+- **Workflow**: Task assignments
 
 ## Testing
 
+The domain includes comprehensive tests for all command handlers and event applications:
+
 ```bash
-# Run all person domain tests
-cargo test -p cim-domain-person
+# Run all tests
+cargo test
 
-# Run specific test categories
-cargo test -p cim-domain-person --test authentication
-cargo test -p cim-domain-person --test privacy
-cargo test -p cim-domain-person --test profile_management
+# Run specific test file
+cargo test --test person_comprehensive_tests
 ```
 
-### Test Coverage Areas
-- Registration flows
-- Authentication methods
-- Profile updates
-- Privacy controls
-- Organization membership
-- API key management
+## Design Principles
 
-## Migration Guide
-
-### From Legacy User System
-1. Export user data with hashed passwords
-2. Map fields to Person aggregate
-3. Generate PersonId for each user
-4. Import organizational relationships
-5. Migrate authentication methods
-6. Verify data integrity
-
-### Import Format
-```json
-{
-  "persons": [{
-    "external_id": "user-123",
-    "username": "alice.smith",
-    "email": "alice@example.com",
-    "profile": {
-      "display_name": "Alice Smith",
-      "timezone": "America/New_York",
-      "locale": "en-US"
-    },
-    "memberships": [{
-      "organization_id": "org-456",
-      "role": "member",
-      "joined_at": "2023-01-15T10:00:00Z"
-    }]
-  }]
-}
-```
-
-## Best Practices
-
-1. Use strong password policies
-2. Implement proper session management
-3. Audit all authentication events
-4. Respect privacy preferences
-5. Minimize data collection
-6. Encrypt sensitive data
-7. Regular security reviews
-
-## Common Patterns
-
-### User Onboarding
-```
-Registration → Email Verification → Profile Setup → Organization Join → Tutorial
-      ↓               ↓                  ↓               ↓              ↓
-   Events          Events            Events          Events         Events
-```
-
-### Account Recovery
-```
-Request Reset → Verify Identity → Send Token → Reset Password → Notify User
-      ↓               ↓              ↓              ↓              ↓
-   Events          Events         Events         Events         Events
-```
-
-## Contributing
-
-1. Follow privacy-by-design principles
-2. Implement comprehensive audit trails
-3. Test authentication flows thoroughly
-4. Document security implications
-5. Consider international privacy laws
+1. **Event-First**: All changes happen through events
+2. **Immutability**: Events and value objects are immutable
+3. **No CRUD**: No direct create/read/update/delete operations
+4. **Business Language**: Commands and events use domain terminology
+5. **Eventual Consistency**: Read models updated asynchronously from events
 
 ## License
 

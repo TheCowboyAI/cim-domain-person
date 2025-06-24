@@ -1,9 +1,5 @@
-//! Command and query handlers for person domain
+//! Person domain handlers
 
-pub mod command_handlers;
-pub mod query_handlers;
-pub mod cqrs_adapter;
+mod command_handlers;
 
-pub use command_handlers::*;
-pub use query_handlers::{PersonReadModel, PersonQueryResult, PersonQueryHandler};
-pub use cqrs_adapter::{PersonCommandHandler, PersonCommandWrapper, PersonQueryHandlerAdapter};
+pub use command_handlers::{handle_create_person, handle_person_command};

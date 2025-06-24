@@ -1,19 +1,41 @@
-//! Query definitions for the person domain
+//! Person domain queries
 
-use crate::aggregate::PersonId;
+use cim_domain::EntityId;
 use serde::{Deserialize, Serialize};
 
-/// Queries that can be executed against the person domain
+use crate::aggregate::PersonMarker;
+
+/// Person ID type alias
+pub type PersonId = EntityId<PersonMarker>;
+
+/// Queries for the Person domain
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PersonQuery {
-    /// Get a person by their ID
-    GetPersonById {
-        person_id: PersonId
+    /// Get person by ID
+    GetById {
+        person_id: PersonId,
     },
-
-    /// Find a person by email address
-    FindPersonByEmail {
-        email: String
+    
+    /// Find persons by name
+    FindByName {
+        given_name: Option<String>,
+        family_name: Option<String>,
+    },
+    
+    /// Find persons by email
+    FindByEmail {
+        email: String,
+    },
+    
+    /// Find persons by phone
+    FindByPhone {
+        phone: String,
+    },
+    
+    /// List all active persons
+    ListActive {
+        offset: usize,
+        limit: usize,
     },
 
     /// List all active people with pagination

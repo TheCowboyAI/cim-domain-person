@@ -1,236 +1,139 @@
-//! Read model projections for the person domain
+//! Projections for the Person domain
 
-use crate::{
-    aggregate::{Person, PersonId},
-    events::PersonEvent,
-    value_objects::*,
-};
-use cim_domain::{DomainResult, DomainError};
-use serde::{Deserialize, Serialize};
+use crate::aggregate::PersonId;
+use crate::events::*;
+use crate::value_objects::*;
+use chrono::{DateTime, Utc};
+use std::collections::HashMap;
 
-/// Person projection for read models
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersonProjection {
+/// Basic person view
+#[derive(Debug, Clone)]
+pub struct PersonView {
+    pub id: PersonId,
+    pub name: PersonName,
+    pub primary_email: Option<String>,
+    pub primary_phone: Option<String>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Contact information view
+#[derive(Debug, Clone)]
+pub struct ContactView {
+    pub person_id: PersonId,
+    pub emails: HashMap<String, EmailAddress>,
+    pub phones: HashMap<String, PhoneNumber>,
+    pub addresses: HashMap<AddressType, PhysicalAddress>,
+}
+
+/// Customer view
+#[derive(Debug, Clone)]
+pub struct CustomerView {
     pub person_id: PersonId,
     pub name: String,
-    pub emails: Vec<EmailAddress>,
-    pub phones: Vec<PhoneNumber>,
-    pub is_active: bool,
-    pub employment: Option<EmploymentComponent>,
-    pub position: Option<String>,
-    pub department: Option<String>,
-    pub skills: Vec<SkillProficiency>,
-    pub access: Option<AccessComponent>,
-    pub organization_id: Option<uuid::Uuid>,
-    pub manager_id: Option<PersonId>,
-    pub direct_reports: Vec<PersonId>,
-    pub roles: Vec<String>,
+    pub segment: Option<SegmentType>,
+    pub value_tier: Option<ValueTier>,
+    pub lifetime_value: Option<f32>,
+    pub engagement_score: Option<f32>,
 }
 
-impl PersonProjection {
-    /// Apply an event to update the projection
-    pub fn apply_event(&mut self, event: &PersonEvent) {
-        match event {
-            PersonEvent::PersonRegistered { person_id, identity, contact, .. } => {
-                self.person_id = PersonId::from_uuid(*person_id);
-                self.name = identity.preferred_name.as_ref()
-                    .unwrap_or(&identity.legal_name)
-                    .clone();
-                if let Some(contact) = contact {
-                    self.emails = contact.emails.clone();
-                    self.phones = contact.phones.clone();
-                }
-                self.is_active = true;
-            }
-
-            PersonEvent::ContactRemoved { .. } => {
-                self.emails.clear();
-                self.phones.clear();
-            }
-
-            PersonEvent::ContactAdded { new_contact, .. } => {
-                self.emails = new_contact.emails.clone();
-                self.phones = new_contact.phones.clone();
-            }
-
-            PersonEvent::EmploymentAdded { employment, .. } => {
-                self.employment = Some(employment.clone());
-                self.is_active = employment.status == "active";
-                self.organization_id = Some(employment.organization_id);
-                self.position = Some(employment.title.clone());
-                self.department = employment.department.clone();
-            }
-
-            PersonEvent::EmploymentStatusChanged { new_status, .. } => {
-                if let Some(ref mut emp) = self.employment {
-                    emp.status = new_status.clone();
-                    self.is_active = new_status == "active";
-                }
-            }
-
-            PersonEvent::PositionAdded { position, .. } => {
-                self.position = Some(position.title.clone());
-                // Department is on employment, not position
-                // Manager relationship would need to be tracked separately
-            }
-
-            PersonEvent::SkillsRemoved { .. } => {
-                self.skills.clear();
-            }
-
-            PersonEvent::SkillsAdded { new_skills, .. } => {
-                self.skills = new_skills.skills.values().cloned().collect();
-            }
-
-            PersonEvent::AccessGranted { access, .. } => {
-                self.access = Some(access.clone());
-                self.roles = access.roles.clone();
-            }
-
-            _ => {}
-        }
-    }
-}
-
-/// Employee view of a person
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Employee view
+#[derive(Debug, Clone)]
 pub struct EmployeeView {
-    /// The person's unique identifier
     pub person_id: PersonId,
-    /// Employee name
     pub name: String,
-    /// Primary email
-    pub email: Option<String>,
-    /// Department
+    pub current_position: Option<String>,
     pub department: Option<String>,
-    /// Position/title
-    pub position: Option<String>,
-    /// Manager ID
-    pub manager_id: Option<PersonId>,
-    /// Direct reports
-    pub direct_reports: Vec<PersonId>,
-    /// Active status
-    pub is_active: bool,
+    pub manager_name: Option<String>,
 }
 
-impl EmployeeView {
-    /// Create employee view from person
-    pub fn from_person(person: &Person) -> DomainResult<Self> {
-        let identity = person.get_component::<IdentityComponent>()
-            .ok_or_else(|| DomainError::ValidationError(
-                "Person missing identity component".to_string()
-            ))?;
-
-        let contact = person.get_component::<ContactComponent>();
-        let employment = person.get_component::<EmploymentComponent>();
-        let position = person.get_component::<PositionComponent>();
-
-        Ok(Self {
-            person_id: person.id().into(),
-            name: identity.preferred_name.as_ref()
-                .unwrap_or(&identity.legal_name)
-                .clone(),
-            email: contact.and_then(|c| c.emails.first().map(|e| e.email.clone())),
-            department: employment.and_then(|e| e.department.clone()),
-            position: position.map(|p| p.title.clone())
-                .or_else(|| employment.map(|e| e.title.clone())),
-            manager_id: employment.and_then(|e| e.manager_id.map(PersonId::from_uuid)),
-            direct_reports: Vec::new(), // Would need to be populated from a query
-            is_active: employment.map(|e| e.status == "active").unwrap_or(false),
-        })
-    }
-}
-
-/// LDAP projection for directory services
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LdapProjection {
-    /// Distinguished Name (full LDAP path)
-    pub dn: String,
-    /// User ID
-    pub uid: String,
-    /// Common Name (typically the preferred name)
-    pub cn: String,
-    /// Surname (last name)
-    pub sn: String,
-    /// Given name (first name)
-    pub given_name: String,
-    /// Email addresses
-    pub mail: Vec<String>,
-    /// Phone numbers
-    pub telephone_number: Vec<String>,
-    /// Object classes
-    pub object_class: Vec<String>,
-}
-
-impl LdapProjection {
-    /// Create LDAP projection from PersonProjection
-    pub fn from_projection(projection: &PersonProjection, base_dn: &str) -> Self {
-        // Parse name (simple split for now)
-        let name_parts: Vec<&str> = projection.name.split_whitespace().collect();
-        let given_name = name_parts.first().unwrap_or(&"").to_string();
-        let sn = name_parts.last().unwrap_or(&"").to_string();
-
-        let cn = projection.name.clone();
-        let dn = format!("cn={cn},ou=people,{base_dn}");
-
-        let mail = projection.emails.iter()
-            .map(|e| e.email.clone())
-            .collect();
-
-        let telephone_number = projection.phones.iter()
-            .map(|p| p.number.clone())
-            .collect();
-
-        Self {
-            dn,
-            uid: projection.person_id.to_string(),
-            cn,
-            sn,
-            given_name,
-            mail,
-            telephone_number,
-            object_class: vec!["inetOrgPerson".to_string(), "person".to_string()],
+/// Update projections based on events
+pub fn update_person_view(view: &mut PersonView, event: &PersonEvent) {
+    match event {
+        PersonEvent::PersonCreated(e) => {
+            view.id = e.person_id;
+            view.name = e.name.clone();
+            view.created_at = e.created_at;
+            view.updated_at = e.created_at;
         }
+        PersonEvent::NameUpdated(e) => {
+            view.name = e.new_name.clone();
+            view.updated_at = e.updated_at;
+        }
+        PersonEvent::EmailAdded(e) => {
+            if e.primary {
+                view.primary_email = Some(e.email.address.clone());
+            }
+            view.updated_at = e.added_at;
+        }
+        PersonEvent::EmailRemoved(e) => {
+            if view.primary_email.as_ref() == Some(&e.email) {
+                view.primary_email = None;
+            }
+            view.updated_at = e.removed_at;
+        }
+        PersonEvent::PhoneAdded(e) => {
+            if e.primary {
+                view.primary_phone = Some(e.phone.number.clone());
+            }
+            view.updated_at = e.added_at;
+        }
+        PersonEvent::PhoneRemoved(e) => {
+            if view.primary_phone.as_ref() == Some(&e.phone) {
+                view.primary_phone = None;
+            }
+            view.updated_at = e.removed_at;
+        }
+        PersonEvent::PersonDeactivated(e) => {
+            view.is_active = false;
+            view.updated_at = e.deactivated_at;
+        }
+        PersonEvent::PersonReactivated(e) => {
+            view.is_active = true;
+            view.updated_at = e.reactivated_at;
+        }
+        _ => {}
     }
-    /// Create LDAP projection from person
-    pub fn from_person(person: &Person, base_dn: &str) -> DomainResult<Self> {
-        let identity = person.get_component::<IdentityComponent>()
-            .ok_or_else(|| DomainError::ValidationError(
-                "Person missing identity component".to_string()
-            ))?;
+}
 
-        let contact = person.get_component::<ContactComponent>();
+pub fn update_contact_view(view: &mut ContactView, event: &PersonEvent) {
+    match event {
+        PersonEvent::EmailAdded(e) => {
+            view.emails.insert(e.email.address.clone(), e.email.clone());
+        }
+        PersonEvent::EmailRemoved(e) => {
+            view.emails.remove(&e.email);
+        }
+        PersonEvent::PhoneAdded(e) => {
+            view.phones.insert(e.phone.number.clone(), e.phone.clone());
+        }
+        PersonEvent::PhoneRemoved(e) => {
+            view.phones.remove(&e.phone);
+        }
+        PersonEvent::AddressAdded(e) => {
+            view.addresses.insert(e.address_type.clone(), e.address.clone());
+        }
+        PersonEvent::AddressRemoved(e) => {
+            view.addresses.remove(&e.address_type);
+        }
+        _ => {}
+    }
+}
 
-        // Parse name (simple split for now)
-        let name_parts: Vec<&str> = identity.legal_name.split_whitespace().collect();
-        let given_name = name_parts.first().unwrap_or(&"").to_string();
-        let sn = name_parts.last().unwrap_or(&"").to_string();
-
-        let cn = identity.preferred_name.as_ref()
-            .unwrap_or(&identity.legal_name)
-            .clone();
-
-        let dn = format!("cn={cn},ou=people,{base_dn}");
-
-        let mail = contact.map(|c| c.emails.iter()
-            .map(|e| e.email.clone())
-            .collect())
-            .unwrap_or_default();
-
-        let telephone_number = contact.map(|c| c.phones.iter()
-            .map(|p| p.number.clone())
-            .collect())
-            .unwrap_or_default();
-
-        Ok(Self {
-            dn,
-            uid: person.id().to_string(),
-            cn,
-            sn,
-            given_name,
-            mail,
-            telephone_number,
-            object_class: vec!["inetOrgPerson".to_string(), "person".to_string()],
-        })
+pub fn update_customer_view(view: &mut CustomerView, event: &PersonEvent) {
+    match event {
+        PersonEvent::NameUpdated(e) => {
+            view.name = e.new_name.display_name();
+        }
+        PersonEvent::CustomerSegmentSet(e) => {
+            view.segment = Some(e.segment.segment_type.clone());
+            view.value_tier = Some(e.segment.value_tier.clone());
+        }
+        PersonEvent::BehavioralDataUpdated(e) => {
+            view.lifetime_value = e.data.lifetime_value;
+            view.engagement_score = e.data.engagement_score;
+        }
+        _ => {}
     }
 }
