@@ -1,13 +1,19 @@
-//! Person domain events
+//! Person domain events - ECS Architecture
+//!
+//! In ECS architecture, events focus on:
+//! - Core identity changes (name, birth/death)
+//! - Lifecycle changes (active, deactivated, merged)
+//! - Component registration tracking
+//!
+//! Component-specific events are handled by their respective systems.
 
 use cim_domain::EntityId;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, NaiveDate};
-use uuid::Uuid;
 
-use crate::aggregate::PersonMarker;
-use crate::value_objects::*;
-use crate::commands::{MergeReason, EmploymentUpdate, SocialProfileUpdate};
+use crate::aggregate::{PersonMarker, ComponentType};
+use crate::value_objects::PersonName;
+use crate::commands::MergeReason;
 
 /// Person ID type alias
 pub type PersonId = EntityId<PersonMarker>;
@@ -15,60 +21,35 @@ pub type PersonId = EntityId<PersonMarker>;
 /// Events for the Person domain
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PersonEvent {
-    // Basic events
+    /// Person was created
     PersonCreated(PersonCreated),
+    
+    /// Person's name was updated
     NameUpdated(NameUpdated),
     
-    // Contact events
-    EmailAdded(EmailAdded),
-    EmailRemoved(EmailRemoved),
-    EmailVerified(EmailVerified),
-    PhoneAdded(PhoneAdded),
-    PhoneRemoved(PhoneRemoved),
-    AddressAdded(AddressAdded),
-    AddressRemoved(AddressRemoved),
+    /// Birth date was set
+    BirthDateSet(BirthDateSet),
     
-    // Employment events
-    EmploymentAdded(EmploymentAdded),
-    EmploymentUpdated(EmploymentUpdated),
-    EmploymentEnded(EmploymentEnded),
+    /// Death was recorded
+    DeathRecorded(DeathRecorded),
     
-    // Skills & Education events
-    SkillAdded(SkillAdded),
-    SkillUpdated(SkillUpdated),
-    SkillRemoved(SkillRemoved),
-    CertificationAdded(CertificationAdded),
-    EducationAdded(EducationAdded),
+    /// Component was registered
+    ComponentRegistered(ComponentRegistered),
     
-    // Relationship events
-    RelationshipAdded(RelationshipAdded),
-    RelationshipUpdated(RelationshipUpdated),
-    RelationshipEnded(RelationshipEnded),
+    /// Component was unregistered
+    ComponentUnregistered(ComponentUnregistered),
     
-    // Social Media events
-    SocialProfileAdded(SocialProfileAdded),
-    SocialProfileUpdated(SocialProfileUpdated),
-    SocialProfileRemoved(SocialProfileRemoved),
-    
-    // Customer/Business events
-    CustomerSegmentSet(CustomerSegmentSet),
-    BehavioralDataUpdated(BehavioralDataUpdated),
-    CommunicationPreferencesSet(CommunicationPreferencesSet),
-    PrivacyPreferencesSet(PrivacyPreferencesSet),
-    
-    // Tag & Metadata events
-    TagAdded(TagAdded),
-    TagRemoved(TagRemoved),
-    CustomAttributeSet(CustomAttributeSet),
-    
-    // Lifecycle events
+    /// Person was deactivated
     PersonDeactivated(PersonDeactivated),
+    
+    /// Person was reactivated
     PersonReactivated(PersonReactivated),
-    PersonsMerged(PersonsMerged),
+    
+    /// Person was merged into another
     PersonMergedInto(PersonMergedInto),
 }
 
-// ===== Basic Events =====
+// ===== Core Identity Events =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersonCreated {
@@ -87,228 +68,34 @@ pub struct NameUpdated {
     pub updated_at: DateTime<Utc>,
 }
 
-// ===== Contact Events =====
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailAdded {
+pub struct BirthDateSet {
     pub person_id: PersonId,
-    pub email: EmailAddress,
-    pub primary: bool,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailRemoved {
-    pub person_id: PersonId,
-    pub email: String,
-    pub removed_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailVerified {
-    pub person_id: PersonId,
-    pub email: String,
-    pub verified_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PhoneAdded {
-    pub person_id: PersonId,
-    pub phone: PhoneNumber,
-    pub primary: bool,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PhoneRemoved {
-    pub person_id: PersonId,
-    pub phone: String,
-    pub removed_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddressAdded {
-    pub person_id: PersonId,
-    pub address: PhysicalAddress,
-    pub address_type: AddressType,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddressRemoved {
-    pub person_id: PersonId,
-    pub address_type: AddressType,
-    pub removed_at: DateTime<Utc>,
-}
-
-// ===== Employment Events =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmploymentAdded {
-    pub person_id: PersonId,
-    pub employment: Employment,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmploymentUpdated {
-    pub person_id: PersonId,
-    pub organization_id: Uuid,
-    pub updates: EmploymentUpdate,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmploymentEnded {
-    pub person_id: PersonId,
-    pub organization_id: Uuid,
-    pub end_date: NaiveDate,
-    pub reason: Option<String>,
-    pub ended_at: DateTime<Utc>,
-}
-
-// ===== Skills & Education Events =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillAdded {
-    pub person_id: PersonId,
-    pub skill: Skill,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillUpdated {
-    pub person_id: PersonId,
-    pub skill_name: String,
-    pub proficiency: ProficiencyLevel,
-    pub last_used: Option<NaiveDate>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillRemoved {
-    pub person_id: PersonId,
-    pub skill_name: String,
-    pub removed_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CertificationAdded {
-    pub person_id: PersonId,
-    pub certification: Certification,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EducationAdded {
-    pub person_id: PersonId,
-    pub education: Education,
-    pub added_at: DateTime<Utc>,
-}
-
-// ===== Relationship Events =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RelationshipAdded {
-    pub person_id: PersonId,
-    pub relationship: Relationship,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RelationshipUpdated {
-    pub person_id: PersonId,
-    pub related_person_id: Uuid,
-    pub status: RelationshipStatus,
-    pub notes: Option<String>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RelationshipEnded {
-    pub person_id: PersonId,
-    pub related_person_id: Uuid,
-    pub end_date: NaiveDate,
-    pub reason: Option<String>,
-    pub ended_at: DateTime<Utc>,
-}
-
-// ===== Social Media Events =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SocialProfileAdded {
-    pub person_id: PersonId,
-    pub profile: SocialProfile,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SocialProfileUpdated {
-    pub person_id: PersonId,
-    pub platform: SocialPlatform,
-    pub updates: SocialProfileUpdate,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SocialProfileRemoved {
-    pub person_id: PersonId,
-    pub platform: SocialPlatform,
-    pub removed_at: DateTime<Utc>,
-}
-
-// ===== Customer/Business Events =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomerSegmentSet {
-    pub person_id: PersonId,
-    pub segment: CustomerSegment,
+    pub birth_date: NaiveDate,
     pub set_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BehavioralDataUpdated {
+pub struct DeathRecorded {
     pub person_id: PersonId,
-    pub data: BehavioralData,
-    pub updated_at: DateTime<Utc>,
+    pub date_of_death: NaiveDate,
+    pub recorded_at: DateTime<Utc>,
+}
+
+// ===== Component Management Events =====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentRegistered {
+    pub person_id: PersonId,
+    pub component_type: ComponentType,
+    pub registered_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CommunicationPreferencesSet {
+pub struct ComponentUnregistered {
     pub person_id: PersonId,
-    pub preferences: CommunicationPreferences,
-    pub set_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrivacyPreferencesSet {
-    pub person_id: PersonId,
-    pub preferences: PrivacyPreferences,
-    pub set_at: DateTime<Utc>,
-}
-
-// ===== Tag & Metadata Events =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TagAdded {
-    pub person_id: PersonId,
-    pub tag: Tag,
-    pub added_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TagRemoved {
-    pub person_id: PersonId,
-    pub tag_name: String,
-    pub category: String,
-    pub removed_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomAttributeSet {
-    pub person_id: PersonId,
-    pub attribute: CustomAttribute,
-    pub set_at: DateTime<Utc>,
+    pub component_type: ComponentType,
+    pub unregistered_at: DateTime<Utc>,
 }
 
 // ===== Lifecycle Events =====
@@ -328,17 +115,125 @@ pub struct PersonReactivated {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersonsMerged {
+pub struct PersonMergedInto {
     pub source_person_id: PersonId,
-    pub target_person_id: PersonId,
-    pub merge_reason: MergeReason,
+    pub merged_into_id: PersonId,
+    pub reason: MergeReason,
     pub merged_at: DateTime<Utc>,
 }
 
+// ===== Legacy Event Stubs (for migration) =====
+// These are kept temporarily to avoid breaking existing code
+// They should be removed once all systems are updated
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersonMergedInto {
-    pub person_id: PersonId,
-    pub merged_into_id: PersonId,
-    pub merge_reason: MergeReason,
-    pub merged_at: DateTime<Utc>,
-}
+pub struct EmailAdded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailRemoved;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailVerified;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhoneAdded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhoneRemoved;
+
+#[deprecated(since = "0.3.0", note = "Use location domain for address management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddressAdded;
+
+#[deprecated(since = "0.3.0", note = "Use location domain for address management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddressRemoved;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmploymentAdded;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmploymentUpdated;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmploymentEnded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillAdded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillUpdated;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillRemoved;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for certifications")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CertificationAdded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for education")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EducationAdded;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelationshipAdded;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelationshipUpdated;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelationshipEnded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SocialProfileAdded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SocialProfileUpdated;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SocialProfileRemoved;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for customer data")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerSegmentSet;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for behavioral data")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BehavioralDataUpdated;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for preferences")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommunicationPreferencesSet;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for preferences")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrivacyPreferencesSet;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for tagging")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagAdded;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for tagging")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagRemoved;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for custom attributes")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomAttributeSet;

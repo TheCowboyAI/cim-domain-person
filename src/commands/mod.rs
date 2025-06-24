@@ -1,18 +1,21 @@
-//! Person domain commands
+//! Person domain commands - ECS Architecture
+//!
+//! In ECS architecture, commands focus on:
+//! - Core identity management (name, birth/death)
+//! - Lifecycle management (active, deactivated, merged)
+//! - Component registration tracking
+//!
+//! Component-specific operations are handled by their respective systems.
 
 use cim_domain::EntityId;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::NaiveDate;
 
-use crate::aggregate::PersonMarker;
-use crate::value_objects::*;
+use crate::aggregate::{PersonMarker, ComponentType};
+use crate::value_objects::PersonName;
 
 /// Person ID type alias
 pub type PersonId = EntityId<PersonMarker>;
-
-/// Re-export AddressType for use in events
-pub use crate::value_objects::AddressType;
 
 /// Commands for the Person domain
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,89 +26,17 @@ pub enum PersonCommand {
     /// Update person's name
     UpdateName(UpdateName),
     
-    /// Add an email address
-    AddEmail(AddEmail),
+    /// Set birth date
+    SetBirthDate(SetBirthDate),
     
-    /// Remove an email address
-    RemoveEmail(RemoveEmail),
+    /// Record death
+    RecordDeath(RecordDeath),
     
-    /// Verify an email address
-    VerifyEmail(VerifyEmail),
+    /// Register a component
+    RegisterComponent(RegisterComponent),
     
-    /// Add a phone number
-    AddPhone(AddPhone),
-    
-    /// Remove a phone number
-    RemovePhone(RemovePhone),
-    
-    /// Add a physical address
-    AddAddress(AddAddress),
-    
-    /// Remove a physical address
-    RemoveAddress(RemoveAddress),
-    
-    /// Add an employment
-    AddEmployment(AddEmployment),
-    
-    /// Update an employment
-    UpdateEmployment(UpdateEmployment),
-    
-    /// End an employment
-    EndEmployment(EndEmployment),
-    
-    /// Add a skill
-    AddSkill(AddSkill),
-    
-    /// Update a skill
-    UpdateSkill(UpdateSkill),
-    
-    /// Remove a skill
-    RemoveSkill(RemoveSkill),
-    
-    /// Add a certification
-    AddCertification(AddCertification),
-    
-    /// Add an education
-    AddEducation(AddEducation),
-    
-    /// Add a relationship
-    AddRelationship(AddRelationship),
-    
-    /// Update a relationship
-    UpdateRelationship(UpdateRelationship),
-    
-    /// End a relationship
-    EndRelationship(EndRelationship),
-    
-    /// Add a social profile
-    AddSocialProfile(AddSocialProfile),
-    
-    /// Update a social profile
-    UpdateSocialProfile(UpdateSocialProfile),
-    
-    /// Remove a social profile
-    RemoveSocialProfile(RemoveSocialProfile),
-    
-    /// Set a customer segment
-    SetCustomerSegment(SetCustomerSegment),
-    
-    /// Update behavioral data
-    UpdateBehavioralData(UpdateBehavioralData),
-    
-    /// Set communication preferences
-    SetCommunicationPreferences(SetCommunicationPreferences),
-    
-    /// Set privacy preferences
-    SetPrivacyPreferences(SetPrivacyPreferences),
-    
-    /// Add a tag
-    AddTag(AddTag),
-    
-    /// Remove a tag
-    RemoveTag(RemoveTag),
-    
-    /// Set a custom attribute
-    SetCustomAttribute(SetCustomAttribute),
+    /// Unregister a component
+    UnregisterComponent(UnregisterComponent),
     
     /// Deactivate the person
     DeactivatePerson(DeactivatePerson),
@@ -117,7 +48,7 @@ pub enum PersonCommand {
     MergePersons(MergePersons),
 }
 
-// ===== Basic Commands =====
+// ===== Core Identity Commands =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatePerson {
@@ -133,216 +64,30 @@ pub struct UpdateName {
     pub reason: Option<String>,
 }
 
-// ===== Contact Commands =====
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddEmail {
+pub struct SetBirthDate {
     pub person_id: PersonId,
-    pub email: EmailAddress,
-    pub primary: bool,
+    pub birth_date: NaiveDate,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RemoveEmail {
+pub struct RecordDeath {
     pub person_id: PersonId,
-    pub email: String,
+    pub date_of_death: NaiveDate,
 }
 
+// ===== Component Management Commands =====
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerifyEmail {
+pub struct RegisterComponent {
     pub person_id: PersonId,
-    pub email: String,
-    pub verification_token: String,
+    pub component_type: ComponentType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddPhone {
+pub struct UnregisterComponent {
     pub person_id: PersonId,
-    pub phone: PhoneNumber,
-    pub primary: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RemovePhone {
-    pub person_id: PersonId,
-    pub phone: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddAddress {
-    pub person_id: PersonId,
-    pub address: PhysicalAddress,
-    pub address_type: AddressType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RemoveAddress {
-    pub person_id: PersonId,
-    pub address_type: AddressType,
-}
-
-// ===== Employment Commands =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddEmployment {
-    pub person_id: PersonId,
-    pub employment: Employment,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateEmployment {
-    pub person_id: PersonId,
-    pub organization_id: Uuid,
-    pub updates: EmploymentUpdate,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmploymentUpdate {
-    pub department: Option<String>,
-    pub position: Option<String>,
-    pub manager_id: Option<Uuid>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EndEmployment {
-    pub person_id: PersonId,
-    pub organization_id: Uuid,
-    pub end_date: NaiveDate,
-    pub reason: Option<String>,
-}
-
-// ===== Skills & Education Commands =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddSkill {
-    pub person_id: PersonId,
-    pub skill: Skill,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateSkill {
-    pub person_id: PersonId,
-    pub skill_name: String,
-    pub proficiency: ProficiencyLevel,
-    pub last_used: Option<NaiveDate>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RemoveSkill {
-    pub person_id: PersonId,
-    pub skill_name: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddCertification {
-    pub person_id: PersonId,
-    pub certification: Certification,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddEducation {
-    pub person_id: PersonId,
-    pub education: Education,
-}
-
-// ===== Relationship Commands =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddRelationship {
-    pub person_id: PersonId,
-    pub relationship: Relationship,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateRelationship {
-    pub person_id: PersonId,
-    pub related_person_id: Uuid,
-    pub status: RelationshipStatus,
-    pub notes: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EndRelationship {
-    pub person_id: PersonId,
-    pub related_person_id: Uuid,
-    pub end_date: NaiveDate,
-    pub reason: Option<String>,
-}
-
-// ===== Social Media Commands =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddSocialProfile {
-    pub person_id: PersonId,
-    pub profile: SocialProfile,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateSocialProfile {
-    pub person_id: PersonId,
-    pub platform: SocialPlatform,
-    pub updates: SocialProfileUpdate,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SocialProfileUpdate {
-    pub username: Option<String>,
-    pub verified: Option<bool>,
-    pub follower_count: Option<u64>,
-    pub engagement_rate: Option<f32>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RemoveSocialProfile {
-    pub person_id: PersonId,
-    pub platform: SocialPlatform,
-}
-
-// ===== Customer/Business Commands =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SetCustomerSegment {
-    pub person_id: PersonId,
-    pub segment: CustomerSegment,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateBehavioralData {
-    pub person_id: PersonId,
-    pub data: BehavioralData,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SetCommunicationPreferences {
-    pub person_id: PersonId,
-    pub preferences: CommunicationPreferences,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SetPrivacyPreferences {
-    pub person_id: PersonId,
-    pub preferences: PrivacyPreferences,
-}
-
-// ===== Tag & Metadata Commands =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddTag {
-    pub person_id: PersonId,
-    pub tag: Tag,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RemoveTag {
-    pub person_id: PersonId,
-    pub tag_name: String,
-    pub category: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SetCustomAttribute {
-    pub person_id: PersonId,
-    pub attribute: CustomAttribute,
+    pub component_type: ComponentType,
 }
 
 // ===== Lifecycle Commands =====
@@ -373,5 +118,121 @@ pub enum MergeReason {
     UserRequested,
     PolicyDetermined,
 }
+
+// ===== Legacy Command Stubs (for migration) =====
+// These are kept temporarily to avoid breaking existing code
+// They should be removed once all systems are updated
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddEmail;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoveEmail;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerifyEmail;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddPhone;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemovePhone;
+
+#[deprecated(since = "0.3.0", note = "Use location domain for address management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddAddress;
+
+#[deprecated(since = "0.3.0", note = "Use location domain for address management")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoveAddress;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddEmployment;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateEmployment;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EndEmployment;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddSkill;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSkill;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoveSkill;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for certifications")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddCertification;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for education")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddEducation;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddRelationship;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateRelationship;
+
+#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EndRelationship;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddSocialProfile;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSocialProfile;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoveSocialProfile;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for customer data")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetCustomerSegment;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for behavioral data")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateBehavioralData;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for preferences")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetCommunicationPreferences;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for preferences")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetPrivacyPreferences;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for tagging")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddTag;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for tagging")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoveTag;
+
+#[deprecated(since = "0.3.0", note = "Use component systems for custom attributes")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetCustomAttribute;
 
 

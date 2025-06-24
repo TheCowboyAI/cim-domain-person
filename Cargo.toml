@@ -1,6 +1,6 @@
 [package]
 name = "cim-domain-person"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["The Cowboy AI"]
 description = "Person domain for CIM"
@@ -12,6 +12,7 @@ categories = ["data-structures"]
 [dependencies]
 # Domain dependencies
 cim-domain = { path = "../cim-domain" }
+cim-domain-location = { path = "../cim-domain-location" }
 
 # Core dependencies
 serde = { version = "1.0", features = ["derive"] }

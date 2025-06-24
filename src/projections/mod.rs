@@ -1,139 +1,144 @@
-//! Projections for the Person domain
+//! Projections for the Person domain - ECS Architecture
+//!
+//! In ECS architecture, projections focus on core identity.
+//! Component-specific views are handled by their respective systems.
 
-use crate::aggregate::PersonId;
+use crate::aggregate::{PersonId, ComponentType, PersonLifecycle};
 use crate::events::*;
-use crate::value_objects::*;
-use chrono::{DateTime, Utc};
-use std::collections::HashMap;
+use crate::value_objects::PersonName;
+use chrono::{DateTime, Utc, NaiveDate};
+use std::collections::HashSet;
 
-/// Basic person view
+/// Basic person view - core identity only
 #[derive(Debug, Clone)]
 pub struct PersonView {
     pub id: PersonId,
     pub name: PersonName,
-    pub primary_email: Option<String>,
-    pub primary_phone: Option<String>,
-    pub is_active: bool,
+    pub birth_date: Option<NaiveDate>,
+    pub death_date: Option<NaiveDate>,
+    pub lifecycle: PersonLifecycle,
+    pub registered_components: HashSet<ComponentType>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-/// Contact information view
-#[derive(Debug, Clone)]
-pub struct ContactView {
-    pub person_id: PersonId,
-    pub emails: HashMap<String, EmailAddress>,
-    pub phones: HashMap<String, PhoneNumber>,
-    pub addresses: HashMap<AddressType, PhysicalAddress>,
-}
+impl PersonView {
+    /// Create a new person view from creation event
+    pub fn from_created_event(event: &PersonCreated) -> Self {
+        Self {
+            id: event.person_id,
+            name: event.name.clone(),
+            birth_date: None,
+            death_date: None,
+            lifecycle: PersonLifecycle::Active,
+            registered_components: HashSet::new(),
+            created_at: event.created_at,
+            updated_at: event.created_at,
+        }
+    }
 
-/// Customer view
-#[derive(Debug, Clone)]
-pub struct CustomerView {
-    pub person_id: PersonId,
-    pub name: String,
-    pub segment: Option<SegmentType>,
-    pub value_tier: Option<ValueTier>,
-    pub lifetime_value: Option<f32>,
-    pub engagement_score: Option<f32>,
-}
-
-/// Employee view
-#[derive(Debug, Clone)]
-pub struct EmployeeView {
-    pub person_id: PersonId,
-    pub name: String,
-    pub current_position: Option<String>,
-    pub department: Option<String>,
-    pub manager_name: Option<String>,
-}
-
-/// Update projections based on events
-pub fn update_person_view(view: &mut PersonView, event: &PersonEvent) {
-    match event {
-        PersonEvent::PersonCreated(e) => {
-            view.id = e.person_id;
-            view.name = e.name.clone();
-            view.created_at = e.created_at;
-            view.updated_at = e.created_at;
-        }
-        PersonEvent::NameUpdated(e) => {
-            view.name = e.new_name.clone();
-            view.updated_at = e.updated_at;
-        }
-        PersonEvent::EmailAdded(e) => {
-            if e.primary {
-                view.primary_email = Some(e.email.address.clone());
+    /// Update the view based on an event
+    pub fn apply_event(&mut self, event: &PersonEvent) {
+        match event {
+            PersonEvent::PersonCreated(e) => {
+                self.id = e.person_id;
+                self.name = e.name.clone();
+                self.created_at = e.created_at;
+                self.updated_at = e.created_at;
             }
-            view.updated_at = e.added_at;
-        }
-        PersonEvent::EmailRemoved(e) => {
-            if view.primary_email.as_ref() == Some(&e.email) {
-                view.primary_email = None;
+            PersonEvent::NameUpdated(e) => {
+                self.name = e.new_name.clone();
+                self.updated_at = e.updated_at;
             }
-            view.updated_at = e.removed_at;
-        }
-        PersonEvent::PhoneAdded(e) => {
-            if e.primary {
-                view.primary_phone = Some(e.phone.number.clone());
+            PersonEvent::BirthDateSet(e) => {
+                self.birth_date = Some(e.birth_date);
+                self.updated_at = e.set_at;
             }
-            view.updated_at = e.added_at;
-        }
-        PersonEvent::PhoneRemoved(e) => {
-            if view.primary_phone.as_ref() == Some(&e.phone) {
-                view.primary_phone = None;
+            PersonEvent::DeathRecorded(e) => {
+                self.death_date = Some(e.date_of_death);
+                self.lifecycle = PersonLifecycle::Deceased {
+                    date_of_death: e.date_of_death,
+                };
+                self.updated_at = e.recorded_at;
             }
-            view.updated_at = e.removed_at;
+            PersonEvent::ComponentRegistered(e) => {
+                self.registered_components.insert(e.component_type.clone());
+                self.updated_at = e.registered_at;
+            }
+            PersonEvent::ComponentUnregistered(e) => {
+                self.registered_components.remove(&e.component_type);
+                self.updated_at = e.unregistered_at;
+            }
+            PersonEvent::PersonDeactivated(e) => {
+                self.lifecycle = PersonLifecycle::Deactivated {
+                    reason: e.reason.clone(),
+                    since: e.deactivated_at,
+                };
+                self.updated_at = e.deactivated_at;
+            }
+            PersonEvent::PersonReactivated(e) => {
+                self.lifecycle = PersonLifecycle::Active;
+                self.updated_at = e.reactivated_at;
+            }
+            PersonEvent::PersonMergedInto(e) => {
+                self.lifecycle = PersonLifecycle::MergedInto {
+                    target_id: e.merged_into_id,
+                    merged_at: e.merged_at,
+                };
+                self.updated_at = e.merged_at;
+            }
         }
-        PersonEvent::PersonDeactivated(e) => {
-            view.is_active = false;
-            view.updated_at = e.deactivated_at;
-        }
-        PersonEvent::PersonReactivated(e) => {
-            view.is_active = true;
-            view.updated_at = e.reactivated_at;
-        }
-        _ => {}
     }
 }
 
-pub fn update_contact_view(view: &mut ContactView, event: &PersonEvent) {
-    match event {
-        PersonEvent::EmailAdded(e) => {
-            view.emails.insert(e.email.address.clone(), e.email.clone());
+/// Person list item for search results
+#[derive(Debug, Clone)]
+pub struct PersonListItem {
+    pub id: PersonId,
+    pub display_name: String,
+    pub lifecycle: PersonLifecycle,
+    pub component_count: usize,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl From<&PersonView> for PersonListItem {
+    fn from(view: &PersonView) -> Self {
+        Self {
+            id: view.id,
+            display_name: view.name.display_name(),
+            lifecycle: view.lifecycle.clone(),
+            component_count: view.registered_components.len(),
+            updated_at: view.updated_at,
         }
-        PersonEvent::EmailRemoved(e) => {
-            view.emails.remove(&e.email);
-        }
-        PersonEvent::PhoneAdded(e) => {
-            view.phones.insert(e.phone.number.clone(), e.phone.clone());
-        }
-        PersonEvent::PhoneRemoved(e) => {
-            view.phones.remove(&e.phone);
-        }
-        PersonEvent::AddressAdded(e) => {
-            view.addresses.insert(e.address_type.clone(), e.address.clone());
-        }
-        PersonEvent::AddressRemoved(e) => {
-            view.addresses.remove(&e.address_type);
-        }
-        _ => {}
     }
 }
 
-pub fn update_customer_view(view: &mut CustomerView, event: &PersonEvent) {
-    match event {
-        PersonEvent::NameUpdated(e) => {
-            view.name = e.new_name.display_name();
+/// Statistics view for analytics
+#[derive(Debug, Clone, Default)]
+pub struct PersonStatistics {
+    pub total_persons: usize,
+    pub active_persons: usize,
+    pub deactivated_persons: usize,
+    pub deceased_persons: usize,
+    pub merged_persons: usize,
+    pub persons_with_components: usize,
+    pub component_usage: Vec<(ComponentType, usize)>,
+}
+
+impl PersonStatistics {
+    /// Update statistics based on a person view
+    pub fn add_person(&mut self, view: &PersonView) {
+        self.total_persons += 1;
+
+        match &view.lifecycle {
+            PersonLifecycle::Active => self.active_persons += 1,
+            PersonLifecycle::Deactivated { .. } => self.deactivated_persons += 1,
+            PersonLifecycle::Deceased { .. } => self.deceased_persons += 1,
+            PersonLifecycle::MergedInto { .. } => self.merged_persons += 1,
         }
-        PersonEvent::CustomerSegmentSet(e) => {
-            view.segment = Some(e.segment.segment_type.clone());
-            view.value_tier = Some(e.segment.value_tier.clone());
+
+        if !view.registered_components.is_empty() {
+            self.persons_with_components += 1;
         }
-        PersonEvent::BehavioralDataUpdated(e) => {
-            view.lifetime_value = e.data.lifetime_value;
-            view.engagement_score = e.data.engagement_score;
-        }
-        _ => {}
     }
 }

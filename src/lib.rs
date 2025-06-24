@@ -1,10 +1,16 @@
 //! Person domain for the Composable Information Machine
 //!
-//! This crate provides the person domain implementation, including:
-//! - Person aggregate with business logic
-//! - Commands for person operations
-//! - Events representing person state changes
-//! - Value objects for person data
+//! This crate provides the person domain implementation following ECS architecture:
+//! - Person aggregate with minimal core identity
+//! - Components for composable capabilities
+//! - Cross-domain relationships
+//!
+//! ## ECS Architecture
+//!
+//! In ECS (Entity Component System), a Person is just an ID with components:
+//! - Entity: PersonId (unique identifier)
+//! - Components: EmailComponent, SkillComponent, etc. (data)
+//! - Systems: Handle commands and process components (behavior)
 
 pub mod aggregate;
 pub mod commands;
@@ -13,13 +19,27 @@ pub mod handlers;
 pub mod projections;
 pub mod queries;
 pub mod value_objects;
-pub mod event_store;
+pub mod cross_domain;
+pub mod components;
 
 // Re-export main types
 pub use aggregate::{Person, PersonId, PersonMarker};
 pub use commands::PersonCommand;
 pub use events::PersonEvent;
-pub use value_objects::{PersonName, EmailAddress, PhoneNumber, PhysicalAddress};
+
+// Re-export core value objects (minimal set)
+pub use value_objects::PersonName;
+
+// Re-export component types
+pub use components::{
+    contact::{EmailComponent, PhoneComponent, ContactContext},
+    skills::{SkillComponent, CertificationComponent, EducationComponent},
+    preferences::{CommunicationPreferencesComponent, PrivacyPreferencesComponent},
+};
+
+// Re-export cross-domain types
+pub use cross_domain::person_location::{PersonAddress, PersonAddressType};
+pub use cross_domain::person_organization::{EmploymentRelationship, EmploymentRole, EmploymentType};
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

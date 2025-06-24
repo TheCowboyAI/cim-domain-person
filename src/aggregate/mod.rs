@@ -1,5 +1,5 @@
-//! Person aggregate module
+//! Person aggregate module - ECS architecture
 
-mod person;
-
-pub use person::{Person, PersonId, PersonMarker};
+// Export the ECS-oriented person aggregate
+pub mod person_ecs;
+pub use person_ecs::{Person, PersonId, PersonMarker, CoreIdentity, PersonLifecycle, ComponentType};

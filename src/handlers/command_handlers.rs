@@ -12,7 +12,7 @@ pub fn handle_create_person(
     name: PersonName,
     source: String,
 ) -> DomainResult<(Person, Vec<PersonEvent>)> {
-    let person = Person::new(person_id, name.clone(), source.clone());
+    let person = Person::new(person_id, name.clone());
     
     let event = PersonEvent::PersonCreated(PersonCreated {
         person_id,
