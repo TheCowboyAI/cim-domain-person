@@ -24,6 +24,9 @@ pub enum PersonEvent {
     /// Person was created
     PersonCreated(PersonCreated),
     
+    /// Person was updated
+    PersonUpdated(PersonUpdated),
+    
     /// Person's name was updated
     NameUpdated(NameUpdated),
     
@@ -47,6 +50,9 @@ pub enum PersonEvent {
     
     /// Person was merged into another
     PersonMergedInto(PersonMergedInto),
+    
+    /// Component data was updated
+    ComponentDataUpdated(ComponentDataUpdated),
 }
 
 // ===== Core Identity Events =====
@@ -57,6 +63,13 @@ pub struct PersonCreated {
     pub name: PersonName,
     pub source: String,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonUpdated {
+    pub person_id: PersonId,
+    pub name: PersonName,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,122 +131,10 @@ pub struct PersonReactivated {
 pub struct PersonMergedInto {
     pub source_person_id: PersonId,
     pub merged_into_id: PersonId,
-    pub reason: MergeReason,
+    pub merge_reason: MergeReason,
     pub merged_at: DateTime<Utc>,
 }
 
-// ===== Legacy Event Stubs (for migration) =====
-// These are kept temporarily to avoid breaking existing code
-// They should be removed once all systems are updated
-
-#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailAdded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailRemoved;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailVerified;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PhoneAdded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for contact management")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PhoneRemoved;
-
-#[deprecated(since = "0.3.0", note = "Use location domain for address management")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddressAdded;
-
-#[deprecated(since = "0.3.0", note = "Use location domain for address management")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddressRemoved;
-
-#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmploymentAdded;
-
-#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmploymentUpdated;
-
-#[deprecated(since = "0.3.0", note = "Use cross-domain relationships for employment")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmploymentEnded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillAdded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillUpdated;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for skills")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillRemoved;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for certifications")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CertificationAdded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for education")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EducationAdded;
-
-#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RelationshipAdded;
-
-#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RelationshipUpdated;
-
-#[deprecated(since = "0.3.0", note = "Use cross-domain relationships")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RelationshipEnded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SocialProfileAdded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SocialProfileUpdated;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for social profiles")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SocialProfileRemoved;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for customer data")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomerSegmentSet;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for behavioral data")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BehavioralDataUpdated;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for preferences")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CommunicationPreferencesSet;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for preferences")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrivacyPreferencesSet;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for tagging")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TagAdded;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for tagging")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TagRemoved;
-
-#[deprecated(since = "0.3.0", note = "Use component systems for custom attributes")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomAttributeSet;
+// Include new component events
+mod component_events;
+pub use component_events::*;

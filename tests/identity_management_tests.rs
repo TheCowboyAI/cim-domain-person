@@ -11,7 +11,6 @@ use cim_domain_person::{
     commands::*,
     events::*,
     value_objects::PersonName,
-    DomainError,
 };
 use chrono::{Utc, NaiveDate};
 
@@ -186,7 +185,7 @@ fn test_merge_duplicate_persons() {
     let merge_cmd = PersonCommand::MergePersons(MergePersons {
         source_person_id: source.id,
         target_person_id: target_id,
-        merge_reason: MergeReason::DuplicateRecord,
+        merge_reason: MergeReason::DuplicateIdentity,
     });
     let result = source.handle_command(merge_cmd);
     
@@ -201,7 +200,7 @@ fn test_merge_duplicate_persons() {
     match merge_event.unwrap() {
         PersonEvent::PersonMergedInto(event) => {
             assert_eq!(event.merged_into_id, target_id, "Should reference target person");
-            assert!(matches!(event.reason, MergeReason::DuplicateRecord), "Should record merge reason");
+            assert!(matches!(event.reason, MergeReason::DuplicateIdentity), "Should record merge reason");
         }
         _ => unreachable!(),
     }
@@ -376,7 +375,7 @@ fn test_lifecycle_transitions() {
     let merge_cmd = PersonCommand::MergePersons(MergePersons {
         source_person_id: person3.id,
         target_person_id: PersonId::new(),
-        merge_reason: MergeReason::DuplicateRecord,
+        merge_reason: MergeReason::DuplicateIdentity,
     });
     assert!(person3.handle_command(merge_cmd).is_ok());
 }

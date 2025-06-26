@@ -1,10 +1,10 @@
-# CIM Domain Person
+# Person Domain
 
-ECS-oriented Person domain for the Composable Information Machine (CIM) project.
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/cim/person-domain)
 
 ## Overview
 
-The Person domain has been refactored to follow an Entity Component System (ECS) architecture aligned with Bevy. This domain now focuses exclusively on core person identity, with all other data managed as composable components.
+The Person domain implements an Entity Component System (ECS) architecture aligned with Bevy. This domain focuses exclusively on core person identity, with all other data managed as composable components.
 
 ## Architecture
 
@@ -48,33 +48,6 @@ let mut person = Person::new(person_id, name);
 person.register_component(ComponentType::EmailAddress)?;
 person.register_component(ComponentType::Skill)?;
 ```
-
-## Migration from v0.2
-
-The Person domain has undergone significant refactoring:
-- 61% code reduction (890 → 346 lines)
-- Removed all complex value objects from core aggregate
-- Moved to component-based architecture
-- Proper domain boundary enforcement
-
-### Breaking Changes
-
-1. **Removed from Person aggregate**:
-   - All contact information (emails, phones, addresses)
-   - Employment history
-   - Skills and certifications
-   - Relationships
-   - Customer/business attributes
-
-2. **New Component System**:
-   - Components are registered but not stored in the aggregate
-   - Actual component data is managed by ECS systems
-   - Cross-domain relationships use dedicated service interfaces
-
-3. **Simplified Commands/Events**:
-   - Only core identity operations remain
-   - Component operations are handled by ECS systems
-   - Cross-domain operations use domain services
 
 ## Examples
 

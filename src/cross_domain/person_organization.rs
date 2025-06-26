@@ -3,18 +3,17 @@
 //! This module manages employment relationships between persons and organizations
 //! without duplicating organization domain concepts.
 
-use crate::PersonId;
+use crate::aggregate::PersonId;
 use cim_domain::EntityId;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
+use crate::components::data::EmploymentType;
 
-// TODO: When organization domain is available, import these:
-// use cim_domain_organization::{OrganizationId, OrganizationRole, DepartmentId};
-
-// Temporary placeholders until organization domain is available
+// Placeholder types until organization domain is available
 pub type OrganizationId = Uuid;
 pub type DepartmentId = Uuid;
+pub type Role = String;
 
 /// Represents an employment relationship between a person and an organization
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,20 +60,6 @@ pub struct EmploymentRole {
     
     /// Role category (e.g., Engineering, Sales, Marketing)
     pub category: Option<String>,
-}
-
-/// Type of employment relationship
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum EmploymentType {
-    FullTime,
-    PartTime,
-    Contract,
-    Consultant,
-    Intern,
-    Volunteer,
-    Partner,
-    Advisor,
-    BoardMember,
 }
 
 /// Additional employment metadata

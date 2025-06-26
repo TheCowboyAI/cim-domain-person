@@ -101,7 +101,7 @@ fn test_multiple_component_types() {
         ComponentType::CustomerSegment,
         ComponentType::CommunicationPreferences,
         ComponentType::Tag,
-        ComponentType::External("CustomSystem".to_string()),
+        ComponentType::CustomAttribute,
     ];
     
     for comp_type in &component_types {
@@ -145,12 +145,12 @@ fn test_external_component_types() {
     let name = PersonName::new("External".to_string(), "Components".to_string());
     let mut person = Person::new(person_id, name);
     
-    // Register external components from different systems
+    // Register various component types
     let external_types = vec![
-        ComponentType::External("CRM.CustomerProfile".to_string()),
-        ComponentType::External("HR.EmployeeRecord".to_string()),
-        ComponentType::External("Marketing.LeadScore".to_string()),
-        ComponentType::External("Support.TicketHistory".to_string()),
+        ComponentType::CustomerSegment,
+        ComponentType::Employment,
+        ComponentType::PrivacyPreferences,
+        ComponentType::GeneralPreferences,
     ];
     
     for ext_type in &external_types {

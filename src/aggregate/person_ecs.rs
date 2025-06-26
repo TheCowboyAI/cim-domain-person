@@ -7,6 +7,7 @@ use cim_domain::{AggregateRoot, DomainError, DomainResult, EntityId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use chrono::{DateTime, Utc};
+use std::fmt;
 
 use crate::value_objects::PersonName;
 use crate::commands::*;
@@ -29,7 +30,7 @@ pub type PersonId = EntityId<PersonMarker>;
 /// 
 /// Everything else (addresses, employment, skills, etc.) are separate components
 /// that can be composed onto the person entity.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Person {
     /// Unique identifier (the Entity in ECS)
     pub id: PersonId,
@@ -48,7 +49,7 @@ pub struct Person {
 }
 
 /// Core identity - the absolute minimum to identify a person
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CoreIdentity {
     /// Legal name (can change but is core identity)
     pub legal_name: PersonName,
@@ -67,7 +68,7 @@ pub struct CoreIdentity {
 }
 
 /// Person lifecycle state
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PersonLifecycle {
     /// Normal active state
     Active,
@@ -84,17 +85,20 @@ pub enum PersonLifecycle {
 
 /// Types of components that can be attached to a person
 /// This is for tracking and validation, not for storing the actual data
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ComponentType {
     // Contact components
     EmailAddress,
     PhoneNumber,
+    MessagingApp,
     
     // Location components (from location domain)
     Address,
     
     // Professional components (from organization domain)
     Employment,
+    ProfessionalAffiliation,
+    Project,
     
     // Skill components
     Skill,
@@ -103,6 +107,9 @@ pub enum ComponentType {
     
     // Social components
     SocialProfile,
+    Website,
+    ProfessionalNetwork,
+    Relationship,
     
     // Business components
     CustomerSegment,
@@ -111,13 +118,39 @@ pub enum ComponentType {
     // Preference components
     CommunicationPreferences,
     PrivacyPreferences,
+    GeneralPreferences,
     
     // Generic components
     Tag,
     CustomAttribute,
-    
-    // Other domains can register their component types
-    External(String),
+}
+
+impl fmt::Display for ComponentType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ComponentType::EmailAddress => write!(f, "EmailAddress"),
+            ComponentType::PhoneNumber => write!(f, "PhoneNumber"),
+            ComponentType::MessagingApp => write!(f, "MessagingApp"),
+            ComponentType::Address => write!(f, "Address"),
+            ComponentType::Employment => write!(f, "Employment"),
+            ComponentType::ProfessionalAffiliation => write!(f, "ProfessionalAffiliation"),
+            ComponentType::Project => write!(f, "Project"),
+            ComponentType::Skill => write!(f, "Skill"),
+            ComponentType::Certification => write!(f, "Certification"),
+            ComponentType::Education => write!(f, "Education"),
+            ComponentType::SocialProfile => write!(f, "SocialProfile"),
+            ComponentType::Website => write!(f, "Website"),
+            ComponentType::ProfessionalNetwork => write!(f, "ProfessionalNetwork"),
+            ComponentType::Relationship => write!(f, "Relationship"),
+            ComponentType::CustomerSegment => write!(f, "CustomerSegment"),
+            ComponentType::BehavioralData => write!(f, "BehavioralData"),
+            ComponentType::CommunicationPreferences => write!(f, "CommunicationPreferences"),
+            ComponentType::PrivacyPreferences => write!(f, "PrivacyPreferences"),
+            ComponentType::GeneralPreferences => write!(f, "GeneralPreferences"),
+            ComponentType::Tag => write!(f, "Tag"),
+            ComponentType::CustomAttribute => write!(f, "CustomAttribute"),
+        }
+    }
 }
 
 impl Person {
@@ -198,7 +231,7 @@ impl Person {
             _ => {}
         }
 
-        match command {
+        let events = match command {
             PersonCommand::CreatePerson(cmd) => self.handle_create_person(cmd),
             PersonCommand::UpdateName(cmd) => self.handle_update_name(cmd),
             PersonCommand::SetBirthDate(cmd) => self.handle_set_birth_date(cmd),
@@ -210,9 +243,15 @@ impl Person {
             // Component registration commands
             PersonCommand::RegisterComponent(cmd) => self.handle_register_component(cmd),
             PersonCommand::UnregisterComponent(cmd) => self.handle_unregister_component(cmd),
-            
-
+        }?;
+        
+        // Apply the events to update state
+        use super::EventSourced;
+        for event in &events {
+            self.apply_event(event).map_err(|e| e.to_string())?;
         }
+        
+        Ok(events)
     }
 
     // Command handlers for core identity only
@@ -294,12 +333,14 @@ impl Person {
             return Err("Cannot merge inactive person".to_string());
         }
         
-        Ok(vec![PersonEvent::PersonMergedInto(PersonMergedInto {
+        let merge_event = PersonEvent::PersonMergedInto(PersonMergedInto {
             source_person_id: self.id,
             merged_into_id: cmd.target_person_id,
-            reason: cmd.merge_reason,
+            merge_reason: cmd.merge_reason,
             merged_at: Utc::now(),
-        })])
+        });
+        
+        Ok(vec![merge_event])
     }
 
     fn handle_register_component(&mut self, cmd: RegisterComponent) -> Result<Vec<PersonEvent>, String> {
@@ -340,6 +381,116 @@ impl AggregateRoot for Person {
 
     fn increment_version(&mut self) {
         self.version += 1;
+    }
+}
+
+// EventSourced implementation
+impl super::EventSourced for Person {
+    type Event = PersonEvent;
+    
+    fn apply_event(&mut self, event: &PersonEvent) -> DomainResult<()> {
+        match event {
+            PersonEvent::PersonCreated(e) => self.apply_person_created(e),
+            PersonEvent::PersonUpdated(e) => self.apply_person_updated(e),
+            PersonEvent::NameUpdated(e) => self.apply_name_updated(e),
+            PersonEvent::BirthDateSet(e) => self.apply_birth_date_set(e),
+            PersonEvent::DeathRecorded(e) => self.apply_death_recorded(e),
+            PersonEvent::ComponentRegistered(e) => self.apply_component_registered(e),
+            PersonEvent::ComponentUnregistered(e) => self.apply_component_unregistered(e),
+            PersonEvent::PersonDeactivated(e) => self.apply_person_deactivated(e),
+            PersonEvent::PersonReactivated(e) => self.apply_person_reactivated(e),
+            PersonEvent::PersonMergedInto(e) => self.apply_person_merged_into(e),
+            PersonEvent::ComponentDataUpdated(e) => self.apply_component_data_updated(e),
+        }
+    }
+}
+
+// Event application methods
+impl Person {
+    fn apply_person_created(&mut self, event: &PersonCreated) -> DomainResult<()> {
+        self.id = event.person_id;
+        self.core_identity.legal_name = event.name.clone();
+        self.core_identity.created_at = event.created_at;
+        self.core_identity.updated_at = event.created_at;
+        self.lifecycle = PersonLifecycle::Active;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_name_updated(&mut self, event: &NameUpdated) -> DomainResult<()> {
+        self.core_identity.legal_name = event.new_name.clone();
+        self.core_identity.updated_at = event.updated_at;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_birth_date_set(&mut self, event: &BirthDateSet) -> DomainResult<()> {
+        self.core_identity.birth_date = Some(event.birth_date);
+        self.core_identity.updated_at = event.set_at;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_death_recorded(&mut self, event: &DeathRecorded) -> DomainResult<()> {
+        self.core_identity.death_date = Some(event.date_of_death);
+        self.lifecycle = PersonLifecycle::Deceased { date_of_death: event.date_of_death };
+        self.core_identity.updated_at = event.recorded_at;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_component_registered(&mut self, event: &ComponentRegistered) -> DomainResult<()> {
+        self.components.insert(event.component_type.clone());
+        self.core_identity.updated_at = event.registered_at;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_component_unregistered(&mut self, event: &ComponentUnregistered) -> DomainResult<()> {
+        self.components.remove(&event.component_type);
+        self.core_identity.updated_at = event.unregistered_at;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_person_deactivated(&mut self, event: &PersonDeactivated) -> DomainResult<()> {
+        self.lifecycle = PersonLifecycle::Deactivated {
+            reason: event.reason.clone(),
+            since: event.deactivated_at,
+        };
+        self.core_identity.updated_at = event.deactivated_at;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_person_reactivated(&mut self, event: &PersonReactivated) -> DomainResult<()> {
+        self.lifecycle = PersonLifecycle::Active;
+        self.core_identity.updated_at = event.reactivated_at;
+        self.increment_version();
+        Ok(())
+    }
+    
+    fn apply_person_merged_into(&mut self, event: &PersonMergedInto) -> DomainResult<()> {
+        self.lifecycle = PersonLifecycle::MergedInto {
+            target_id: event.merged_into_id,
+            merged_at: event.merged_at,
+        };
+        self.core_identity.updated_at = event.merged_at;
+        self.increment_version();
+        Ok(())
+    }
+
+    fn apply_component_data_updated(&mut self, _event: &ComponentDataUpdated) -> DomainResult<()> {
+        // Component data is managed by the component store, not the aggregate
+        // This event is for audit/notification purposes only
+        Ok(())
+    }
+
+    fn apply_person_updated(&mut self, event: &PersonUpdated) -> DomainResult<()> {
+        self.core_identity.legal_name = event.name.clone();
+        self.core_identity.updated_at = event.updated_at;
+        self.increment_version();
+        Ok(())
     }
 }
 

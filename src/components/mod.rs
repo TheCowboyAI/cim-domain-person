@@ -12,9 +12,13 @@
 pub mod contact;
 pub mod skills;
 pub mod preferences;
+pub mod data;
 
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+
+// Re-export component store from infrastructure
+pub use crate::infrastructure::{ComponentStore, InMemoryComponentStore};
 
 /// Base trait for all person components
 pub trait PersonComponent: Send + Sync + 'static {

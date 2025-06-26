@@ -1,144 +1,124 @@
-//! Projections for the Person domain - ECS Architecture
-//!
-//! In ECS architecture, projections focus on core identity.
-//! Component-specific views are handled by their respective systems.
+//! Read model projections for Person domain
+//! 
+//! This module contains various projections that provide optimized
+//! read models for different query patterns.
 
-use crate::aggregate::{PersonId, ComponentType, PersonLifecycle};
-use crate::events::*;
-use crate::value_objects::PersonName;
-use chrono::{DateTime, Utc, NaiveDate};
-use std::collections::HashSet;
+use cim_domain::DomainResult;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
+use chrono::{DateTime, Utc};
 
-/// Basic person view - core identity only
-#[derive(Debug, Clone)]
-pub struct PersonView {
-    pub id: PersonId,
-    pub name: PersonName,
-    pub birth_date: Option<NaiveDate>,
-    pub death_date: Option<NaiveDate>,
-    pub lifecycle: PersonLifecycle,
-    pub registered_components: HashSet<ComponentType>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+pub mod person_summary_projection;
+pub mod person_search_projection;
+pub mod person_skills_projection;
+pub mod person_network_projection;
+pub mod person_timeline_projection;
+
+pub use person_summary_projection::*;
+pub use person_search_projection::*;
+pub use person_skills_projection::*;
+pub use person_network_projection::*;
+pub use person_timeline_projection::*;
+
+use crate::aggregate::PersonId;
+use crate::events::PersonEvent;
+
+/// Trait for projections that process person events
+#[async_trait::async_trait]
+pub trait PersonProjection: Send + Sync {
+    /// Process a person event to update the projection
+    async fn handle_event(&self, event: &PersonEvent) -> DomainResult<()>;
+    
+    /// Get the name of this projection
+    fn projection_name(&self) -> &str;
+    
+    /// Clear all data in the projection
+    async fn clear(&self) -> DomainResult<()>;
 }
 
-impl PersonView {
-    /// Create a new person view from creation event
-    pub fn from_created_event(event: &PersonCreated) -> Self {
+/// Manager for coordinating multiple projections
+pub struct ProjectionManager {
+    projections: Vec<Arc<dyn PersonProjection>>,
+}
+
+impl ProjectionManager {
+    pub fn new() -> Self {
         Self {
-            id: event.person_id,
-            name: event.name.clone(),
-            birth_date: None,
-            death_date: None,
-            lifecycle: PersonLifecycle::Active,
-            registered_components: HashSet::new(),
-            created_at: event.created_at,
-            updated_at: event.created_at,
+            projections: Vec::new(),
         }
     }
-
-    /// Update the view based on an event
-    pub fn apply_event(&mut self, event: &PersonEvent) {
-        match event {
-            PersonEvent::PersonCreated(e) => {
-                self.id = e.person_id;
-                self.name = e.name.clone();
-                self.created_at = e.created_at;
-                self.updated_at = e.created_at;
-            }
-            PersonEvent::NameUpdated(e) => {
-                self.name = e.new_name.clone();
-                self.updated_at = e.updated_at;
-            }
-            PersonEvent::BirthDateSet(e) => {
-                self.birth_date = Some(e.birth_date);
-                self.updated_at = e.set_at;
-            }
-            PersonEvent::DeathRecorded(e) => {
-                self.death_date = Some(e.date_of_death);
-                self.lifecycle = PersonLifecycle::Deceased {
-                    date_of_death: e.date_of_death,
-                };
-                self.updated_at = e.recorded_at;
-            }
-            PersonEvent::ComponentRegistered(e) => {
-                self.registered_components.insert(e.component_type.clone());
-                self.updated_at = e.registered_at;
-            }
-            PersonEvent::ComponentUnregistered(e) => {
-                self.registered_components.remove(&e.component_type);
-                self.updated_at = e.unregistered_at;
-            }
-            PersonEvent::PersonDeactivated(e) => {
-                self.lifecycle = PersonLifecycle::Deactivated {
-                    reason: e.reason.clone(),
-                    since: e.deactivated_at,
-                };
-                self.updated_at = e.deactivated_at;
-            }
-            PersonEvent::PersonReactivated(e) => {
-                self.lifecycle = PersonLifecycle::Active;
-                self.updated_at = e.reactivated_at;
-            }
-            PersonEvent::PersonMergedInto(e) => {
-                self.lifecycle = PersonLifecycle::MergedInto {
-                    target_id: e.merged_into_id,
-                    merged_at: e.merged_at,
-                };
-                self.updated_at = e.merged_at;
+    
+    /// Register a projection with the manager
+    pub fn register_projection(&mut self, projection: Arc<dyn PersonProjection>) {
+        self.projections.push(projection);
+    }
+    
+    /// Process an event through all registered projections
+    pub async fn handle_event(&self, event: &PersonEvent) -> DomainResult<()> {
+        for projection in &self.projections {
+            if let Err(e) = projection.handle_event(event).await {
+                tracing::error!(
+                    "Error in projection {}: {}",
+                    projection.projection_name(),
+                    e
+                );
+                // Continue processing other projections even if one fails
             }
         }
+        Ok(())
+    }
+    
+    /// Clear all projections
+    pub async fn clear_all(&self) -> DomainResult<()> {
+        for projection in &self.projections {
+            projection.clear().await?;
+        }
+        Ok(())
     }
 }
 
-/// Person list item for search results
-#[derive(Debug, Clone)]
-pub struct PersonListItem {
-    pub id: PersonId,
-    pub display_name: String,
-    pub lifecycle: PersonLifecycle,
+/// Common data structures used across projections
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonSummary {
+    pub person_id: PersonId,
+    pub name: String,
+    pub primary_email: Option<String>,
+    pub primary_phone: Option<String>,
+    pub current_employer: Option<String>,
+    pub current_role: Option<String>,
+    pub location: Option<String>,
+    pub skills_count: usize,
     pub component_count: usize,
-    pub updated_at: DateTime<Utc>,
+    pub last_updated: DateTime<Utc>,
 }
 
-impl From<&PersonView> for PersonListItem {
-    fn from(view: &PersonView) -> Self {
-        Self {
-            id: view.id,
-            display_name: view.name.display_name(),
-            lifecycle: view.lifecycle.clone(),
-            component_count: view.registered_components.len(),
-            updated_at: view.updated_at,
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonSearchResult {
+    pub person_id: PersonId,
+    pub name: String,
+    pub email: Option<String>,
+    pub employer: Option<String>,
+    pub role: Option<String>,
+    pub relevance_score: f32,
 }
 
-/// Statistics view for analytics
-#[derive(Debug, Clone, Default)]
-pub struct PersonStatistics {
-    pub total_persons: usize,
-    pub active_persons: usize,
-    pub deactivated_persons: usize,
-    pub deceased_persons: usize,
-    pub merged_persons: usize,
-    pub persons_with_components: usize,
-    pub component_usage: Vec<(ComponentType, usize)>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillSummary {
+    pub skill_name: String,
+    pub category: String,
+    pub proficiency: String,
+    pub years_experience: Option<f32>,
+    pub last_used: Option<DateTime<Utc>>,
+    pub endorsement_count: usize,
 }
 
-impl PersonStatistics {
-    /// Update statistics based on a person view
-    pub fn add_person(&mut self, view: &PersonView) {
-        self.total_persons += 1;
-
-        match &view.lifecycle {
-            PersonLifecycle::Active => self.active_persons += 1,
-            PersonLifecycle::Deactivated { .. } => self.deactivated_persons += 1,
-            PersonLifecycle::Deceased { .. } => self.deceased_persons += 1,
-            PersonLifecycle::MergedInto { .. } => self.merged_persons += 1,
-        }
-
-        if !view.registered_components.is_empty() {
-            self.persons_with_components += 1;
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimelineEntry {
+    pub timestamp: DateTime<Utc>,
+    pub event_type: String,
+    pub title: String,
+    pub description: String,
+    pub metadata: HashMap<String, serde_json::Value>,
 }

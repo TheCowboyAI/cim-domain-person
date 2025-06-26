@@ -11,8 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use chrono::{DateTime, Utc, NaiveDate};
-use uuid::Uuid;
+use std::hash::{Hash, Hasher};
 
 // ===== Core Identity =====
 
@@ -90,10 +89,15 @@ pub struct EmailAddress {
 
 impl EmailAddress {
     /// Create a new unverified email
-    pub fn new(address: String) -> Self {
-        Self {
-            address,
-            verified: false,
+    pub fn new(address: String) -> Result<Self, String> {
+        // Simple validation
+        if address.contains('@') && address.contains('.') {
+            Ok(Self {
+                address,
+                verified: false,
+            })
+        } else {
+            Err("Invalid email format".to_string())
         }
     }
     
@@ -103,6 +107,11 @@ impl EmailAddress {
             address,
             verified: true,
         }
+    }
+    
+    /// Get the email address value
+    pub fn value(&self) -> &str {
+        &self.address
     }
 }
 
@@ -123,12 +132,17 @@ pub struct PhoneNumber {
 
 impl PhoneNumber {
     /// Create a simple phone number
-    pub fn new(number: String) -> Self {
-        Self {
-            number,
-            country_code: None,
-            extension: None,
-            sms_capable: false,
+    pub fn new(number: String) -> Result<Self, String> {
+        // Simple validation - check if it has digits
+        if number.chars().any(|c| c.is_numeric()) {
+            Ok(Self {
+                number,
+                country_code: None,
+                extension: None,
+                sms_capable: false,
+            })
+        } else {
+            Err("Phone number must contain digits".to_string())
         }
     }
     
@@ -140,6 +154,11 @@ impl PhoneNumber {
             extension: None,
             sms_capable: false,
         }
+    }
+    
+    /// Get the phone number value
+    pub fn value(&self) -> &str {
+        &self.number
     }
 }
 
@@ -170,14 +189,15 @@ pub enum AddressType {
 }
 
 /// Employment type (used for cross-domain relationships)
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EmploymentType {
     FullTime,
     PartTime,
     Contract,
-    Consultant,
-    Partner,
-    Advisor,
+    Freelance,
+    Internship,
+    Volunteer,
+    Other,
 }
 
 // ===== Skills & Qualifications (Now managed as components) =====
@@ -297,7 +317,12 @@ pub enum ContactFrequency {
     AsNeeded,
 }
 
-// Note: The actual data structures (Skill, Certification, Education, Relationship,
-// SocialProfile, CustomerSegment, BehavioralData, CommunicationPreferences,
-// PrivacyPreferences, Tag, CustomAttribute) are now ECS components in the
-// components module, not value objects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RemoteType {
+    OnSite,
+    Remote,
+    Hybrid,
+    Unknown,
+}
+
+

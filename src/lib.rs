@@ -21,6 +21,7 @@ pub mod queries;
 pub mod value_objects;
 pub mod cross_domain;
 pub mod components;
+pub mod infrastructure;
 
 // Re-export main types
 pub use aggregate::{Person, PersonId, PersonMarker};
@@ -39,7 +40,15 @@ pub use components::{
 
 // Re-export cross-domain types
 pub use cross_domain::person_location::{PersonAddress, PersonAddressType};
-pub use cross_domain::person_organization::{EmploymentRelationship, EmploymentRole, EmploymentType};
+pub use cross_domain::person_organization::{EmploymentRelationship, EmploymentRole};
+
+// Re-export infrastructure types
+pub use infrastructure::{
+    EventStore, InMemoryEventStore, EventEnvelope,
+    PersonRepository, InMemorySnapshotStore,
+    NatsEventStore, PersonCommandHandler,
+    ComponentStore, InMemoryComponentStore,
+};
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
