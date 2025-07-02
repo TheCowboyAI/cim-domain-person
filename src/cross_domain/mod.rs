@@ -133,6 +133,7 @@ pub enum CrossDomainCommand {
 
 /// Service for handling cross-domain integration
 pub struct CrossDomainIntegrationService {
+    #[allow(dead_code)]
     event_publisher: Arc<dyn EventPublisher>,
     command_sender: Arc<dyn CommandSender>,
 }

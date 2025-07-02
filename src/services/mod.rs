@@ -5,9 +5,12 @@
 
 pub mod composition;
 pub mod views;
+pub mod network_analysis;
 
 pub use composition::PersonCompositionService;
 pub use views::{
     PersonView, ViewType, EmployeeViewBuilder, CustomerViewBuilder, PartnerViewBuilder,
     EmployeeView, CustomerView, PartnerView,
-}; 
+};
+
+pub use network_analysis::*; 

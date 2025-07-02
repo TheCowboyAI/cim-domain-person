@@ -12,6 +12,10 @@ use crate::components::data::{
     ComponentDataTrait,
     ComponentInstanceId,
     ComponentInstance,
+    ComponentData, ContactData, ProfessionalData, SocialData,
+    EmailComponentData, PhoneComponentData,
+    EmploymentHistoryData, SkillsData,
+    SocialMediaProfileData,
 };
 
 /// Trait for component storage
@@ -75,6 +79,193 @@ impl InMemoryComponentStore {
             components: Arc::new(RwLock::new(HashMap::new())),
             person_index: Arc::new(RwLock::new(HashMap::new())),
             type_index: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+    
+    /// Add a component (convenience method)
+    pub async fn add_component(
+        &self,
+        person_id: PersonId,
+        component_data: ComponentData,
+    ) -> DomainResult<ComponentInstanceId> {
+        // Convert ComponentData to appropriate ComponentInstance
+        match component_data {
+            ComponentData::Contact(contact) => match contact {
+                ContactData::Email(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                ContactData::Phone(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                ContactData::Messaging(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+            },
+            ComponentData::Professional(prof) => match prof {
+                ProfessionalData::Employment(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                ProfessionalData::Affiliation(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                ProfessionalData::Project(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                ProfessionalData::Skills(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+            },
+            ComponentData::Social(social) => match social {
+                SocialData::SocialMedia(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                SocialData::Website(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                SocialData::ProfessionalNetwork(data) => {
+                    let instance = ComponentInstance::new(person_id, data)?;
+                    self.store_component(instance).await
+                }
+                SocialData::Relationship(data) => {
+                    // Handle relationship data
+                    Err(DomainError::ValidationError("Relationship components not yet implemented".to_string()))
+                }
+            },
+            ComponentData::Location(_data) => {
+                // Handle location data
+                Err(DomainError::ValidationError("Location components not yet implemented".to_string()))
+            }
+            ComponentData::Preferences(_data) => {
+                // Handle preferences data
+                Err(DomainError::ValidationError("Preferences components not yet implemented".to_string()))
+            }
+        }
+    }
+    
+    /// Get all components for a person
+    pub async fn get_components(
+        &self,
+        person_id: PersonId,
+    ) -> DomainResult<Vec<ComponentData>> {
+        let person_index = self.person_index.read().await;
+        let components = self.components.read().await;
+        
+        let component_ids = person_index
+            .get(&person_id)
+            .cloned()
+            .unwrap_or_default();
+        
+        let mut results = Vec::new();
+        for id in component_ids {
+            if let Some(stored) = components.get(&id) {
+                // Deserialize to ComponentData
+                if let Ok(data) = serde_json::from_value::<ComponentData>(stored.data.clone()) {
+                    results.push(data);
+                }
+            }
+        }
+        
+        Ok(results)
+    }
+    
+    /// Remove a component
+    pub async fn remove_component(
+        &self,
+        _person_id: PersonId,
+        component_id: ComponentInstanceId,
+    ) -> DomainResult<()> {
+        self.delete_component(component_id).await
+    }
+    
+    /// Update a component
+    pub async fn update_component(
+        &self,
+        person_id: PersonId,
+        component_id: ComponentInstanceId,
+        component_data: ComponentData,
+    ) -> DomainResult<()> {
+        // Get the existing component to preserve metadata
+        let components = self.components.read().await;
+        if let Some(stored) = components.get(&component_id) {
+            // Deserialize to get the metadata
+            let existing_value = &stored.data;
+            
+            // Update based on component type
+            match component_data {
+                ComponentData::Contact(contact) => match contact {
+                    ContactData::Email(data) => {
+                        // Create new instance with same ID
+                        let mut instance = ComponentInstance::new(person_id, data)?;
+                        instance.id = component_id;
+                        // Preserve metadata if possible
+                        if let Ok(existing) = serde_json::from_value::<ComponentInstance<EmailComponentData>>(existing_value.clone()) {
+                            instance.metadata = existing.metadata;
+                            instance.metadata.updated_at = chrono::Utc::now();
+                        }
+                        drop(components);
+                        ComponentStore::update_component(self, instance).await
+                    }
+                    ContactData::Phone(data) => {
+                        let mut instance = ComponentInstance::new(person_id, data)?;
+                        instance.id = component_id;
+                        if let Ok(existing) = serde_json::from_value::<ComponentInstance<PhoneComponentData>>(existing_value.clone()) {
+                            instance.metadata = existing.metadata;
+                            instance.metadata.updated_at = chrono::Utc::now();
+                        }
+                        drop(components);
+                        ComponentStore::update_component(self, instance).await
+                    }
+                    _ => Err(DomainError::ValidationError("Component type not supported for update".to_string()))
+                },
+                ComponentData::Professional(prof) => match prof {
+                    ProfessionalData::Skills(data) => {
+                        let mut instance = ComponentInstance::new(person_id, data)?;
+                        instance.id = component_id;
+                        if let Ok(existing) = serde_json::from_value::<ComponentInstance<SkillsData>>(existing_value.clone()) {
+                            instance.metadata = existing.metadata;
+                            instance.metadata.updated_at = chrono::Utc::now();
+                        }
+                        drop(components);
+                        ComponentStore::update_component(self, instance).await
+                    }
+                    ProfessionalData::Employment(data) => {
+                        let mut instance = ComponentInstance::new(person_id, data)?;
+                        instance.id = component_id;
+                        if let Ok(existing) = serde_json::from_value::<ComponentInstance<EmploymentHistoryData>>(existing_value.clone()) {
+                            instance.metadata = existing.metadata;
+                            instance.metadata.updated_at = chrono::Utc::now();
+                        }
+                        drop(components);
+                        ComponentStore::update_component(self, instance).await
+                    }
+                    _ => Err(DomainError::ValidationError("Component type not supported for update".to_string()))
+                },
+                ComponentData::Social(social) => match social {
+                    SocialData::SocialMedia(data) => {
+                        let mut instance = ComponentInstance::new(person_id, data)?;
+                        instance.id = component_id;
+                        if let Ok(existing) = serde_json::from_value::<ComponentInstance<SocialMediaProfileData>>(existing_value.clone()) {
+                            instance.metadata = existing.metadata;
+                            instance.metadata.updated_at = chrono::Utc::now();
+                        }
+                        drop(components);
+                        ComponentStore::update_component(self, instance).await
+                    }
+                    _ => Err(DomainError::ValidationError("Component type not supported for update".to_string()))
+                },
+                _ => Err(DomainError::ValidationError("Component type not supported for update".to_string()))
+            }
+        } else {
+            Err(DomainError::generic(format!("Component {} not found", component_id)))
         }
     }
 }

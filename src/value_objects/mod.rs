@@ -11,7 +11,10 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
+
+pub mod relationships;
+pub use relationships::*;
 
 // ===== Core Identity =====
 

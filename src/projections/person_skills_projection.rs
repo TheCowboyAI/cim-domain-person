@@ -22,7 +22,9 @@ struct PersonSkillProfile {
 #[derive(Debug, Clone)]
 struct SkillInfo {
     skill: Skill,
+    #[allow(dead_code)]
     added_at: DateTime<Utc>,
+    #[allow(dead_code)]
     sources: HashSet<String>, // Where the skill came from (manual, git, etc.)
 }
 

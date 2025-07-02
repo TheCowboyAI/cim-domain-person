@@ -264,6 +264,7 @@ pub enum GroupingPeriod {
 
 /// Service for git-related operations
 pub struct GitIntegrationService {
+    #[allow(dead_code)]
     person_repository: Arc<PersonRepository>,
     component_store: Arc<InMemoryComponentStore>,
 }
