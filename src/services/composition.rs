@@ -56,6 +56,8 @@ impl PersonCompositionService {
         
         // Register that this person has employment component
         person.register_component(ComponentType::Employment)?;
+        // Also register email as expected by has_employee_components
+        person.register_component(ComponentType::EmailAddress)?;
         
         Ok(person)
     }

@@ -312,8 +312,18 @@ impl NetworkAnalysisService {
         clustering: f32,
         betweenness: f32,
     ) -> f32 {
-        let connection_score = (direct_connections as f32).ln() / 10.0;
-        let reach_score = (second_degree as f32).ln() / 20.0;
+        let connection_score = if direct_connections > 0 {
+            ((direct_connections as f32).ln() + 1.0) / 10.0
+        } else {
+            0.0
+        };
+        
+        let reach_score = if second_degree > 0 {
+            ((second_degree as f32).ln() + 1.0) / 20.0
+        } else {
+            0.0
+        };
+        
         let quality_score = clustering * 0.3;
         let bridge_score = betweenness * 0.4;
         
