@@ -159,7 +159,7 @@ impl AgentEventHandler {
         // Verify person exists
         let person = self.person_repository.load(person_id).await?;
         if person.is_none() {
-            return Err(DomainError::AggregateNotFound(format!("Person {}", person_id)));
+            return Err(DomainError::AggregateNotFound(format!("Person {person_id}")));
         }
         
         // For now, we'll just log this

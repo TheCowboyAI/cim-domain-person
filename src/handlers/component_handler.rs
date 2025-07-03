@@ -43,7 +43,7 @@ impl ComponentCommandHandler {
         // Verify person exists
         let person_id = self.get_person_id(&command)?;
         let _person = self.person_repository.load(person_id).await?
-            .ok_or_else(|| DomainError::generic(format!("Person {} not found", person_id)))?;
+            .ok_or_else(|| DomainError::generic(format!("Person {person_id} not found")))?;
         
         debug!("Handling component command for person: {}", person_id);
         
@@ -202,7 +202,7 @@ impl ComponentCommandHandler {
                     skills: vec![Skill {
                         name: skill_name.clone(),
                         category: format!("{:?}", category),
-                        proficiency: format!("{:?}", proficiency),
+                        proficiency: format!("{proficiency:?}"),
                         years_experience: None,
                         last_used: None,
                         endorsement_count: None,
@@ -322,7 +322,7 @@ impl ComponentCommandHandler {
             self.component_store.get_component(component_id).await?;
         
         if existing.is_none() {
-            return Err(DomainError::generic(format!("Email component {} not found", component_id)));
+            return Err(DomainError::generic(format!("Email component {component_id} not found")));
         }
         
         let mut component = existing.unwrap();
@@ -469,7 +469,7 @@ impl ComponentCommandHandler {
             self.component_store.get_component(component_id).await?;
         
         if existing.is_none() {
-            return Err(DomainError::generic(format!("Skill component {} not found", component_id)));
+            return Err(DomainError::generic(format!("Skill component {component_id} not found")));
         }
         
         let mut component = existing.unwrap();
@@ -677,7 +677,7 @@ impl ComponentCommandHandler {
             }
         }
         
-        Err(DomainError::generic(format!("Employment component {} not found", component_id)))
+        Err(DomainError::generic(format!("Employment component {component_id} not found")))
     }
     
     async fn handle_update_phone(
@@ -721,7 +721,7 @@ impl ComponentCommandHandler {
             }
         }
         
-        Err(DomainError::generic(format!("Phone component {} not found", component_id)))
+        Err(DomainError::generic(format!("Phone component {component_id} not found")))
     }
     
     async fn handle_remove_phone(
@@ -789,7 +789,7 @@ impl ComponentCommandHandler {
             }]);
         }
         
-        Err(DomainError::generic(format!("Skill component {} not found", component_id)))
+        Err(DomainError::generic(format!("Skill component {component_id} not found")))
     }
     
     async fn handle_remove_skill(
@@ -849,7 +849,7 @@ impl ComponentCommandHandler {
             }
         }
         
-        Err(DomainError::generic(format!("Social profile component {} not found", component_id)))
+        Err(DomainError::generic(format!("Social profile component {component_id} not found")))
     }
     
     async fn handle_remove_social_profile(

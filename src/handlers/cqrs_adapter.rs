@@ -106,7 +106,7 @@ impl QueryHandler<PersonQuery> for PersonQueryHandlerAdapter {
                 correlation_id,
                 result: serde_json::to_value(value).unwrap_or_else(|e| {
                     serde_json::json!({
-                        "error": format!("Failed to serialize result: {}", e)
+                        "error": format!("Failed to serialize result: {e}")
                     })
                 }),
             },

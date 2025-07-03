@@ -73,10 +73,7 @@ impl ComponentDataTrait for CommunicationPreferencesData {
     }
     
     fn summary(&self) -> String {
-        format!("Language: {}, Frequency: {:?}", 
-            self.preferred_language,
-            self.contact_frequency
-        )
+        format!("Language: {}, Frequency: {:?}", self.preferred_language, self.contact_frequency)
     }
 }
 

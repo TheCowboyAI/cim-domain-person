@@ -172,11 +172,7 @@ impl ComponentDataTrait for EducationComponentData {
     }
     
     fn summary(&self) -> String {
-        format!("{:?} in {} from {}", 
-            self.degree_type,
-            self.field_of_study,
-            self.institution
-        )
+        format!("{:?} in {} from {}", self.institution, self.field_of_study, self.institution)
     }
 }
 

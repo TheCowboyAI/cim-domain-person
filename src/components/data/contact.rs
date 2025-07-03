@@ -103,9 +103,7 @@ impl ComponentDataTrait for PhoneComponentData {
     }
     
     fn summary(&self) -> String {
-        format!("{} {} ({})", 
-            self.country_code,
-            self.phone.value(), 
+        format!("{} {} ({})", self.country_code, self.phone.value(), 
             match self.phone_type {
                 PhoneType::Mobile => "Mobile",
                 PhoneType::Home => "Home",

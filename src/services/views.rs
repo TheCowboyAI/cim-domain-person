@@ -4,7 +4,7 @@
 //! of person entities based on their registered components.
 
 use crate::aggregate::{Person, ComponentType};
-use cim_domain::{DomainResult, AggregateRoot};
+use cim_domain::DomainResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

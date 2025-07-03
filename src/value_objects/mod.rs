@@ -173,7 +173,7 @@ impl fmt::Display for PhoneNumber {
             write!(f, "{}", self.number)?;
         }
         if let Some(ref ext) = self.extension {
-            write!(f, " x{}", ext)?;
+            write!(f, " x{ext}")?;
         }
         Ok(())
     }

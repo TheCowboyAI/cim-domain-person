@@ -112,12 +112,12 @@ impl IdentityEventHandler {
         // Verify person exists
         let person = self.person_repository.load(person_id).await?;
         if person.is_none() {
-            return Err(DomainError::AggregateNotFound(format!("Person {}", person_id)));
+            return Err(DomainError::AggregateNotFound(format!("Person {person_id}")));
         }
         
         // Create employment component
         let employment_data = crate::components::data::EmploymentHistoryData {
-            company: format!("Organization {}", org_id),
+            company: format!("Organization {org_id}"),
             position: role.clone(),
             start_date: start_date.date_naive(),
             end_date: None,
@@ -137,7 +137,7 @@ impl IdentityEventHandler {
         let event = ComponentDataEvent::EmploymentAdded {
             person_id,
             component_id,
-            company_name: format!("Organization {}", org_id),
+            company_name: format!("Organization {org_id}"),
             job_title: role,
             employment_type: self.map_employment_type(&employment_type),
             start_date,

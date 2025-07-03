@@ -28,12 +28,12 @@ impl PersonSubjects {
     
     /// Command subject for specific aggregate
     pub fn command_for(aggregate_id: PersonId) -> String {
-        format!("person.commands.{}", aggregate_id)
+        format!("person.commands.{aggregate_id}")
     }
     
     /// Event subject for specific aggregate
     pub fn event_for(aggregate_id: PersonId, event_type: &str) -> String {
-        format!("person.events.{}.{}", aggregate_id, event_type)
+        format!("person.events.{aggregate_id}.{event_type}")
     }
 }
 
@@ -62,7 +62,7 @@ impl NatsEventStore {
         jetstream.create_stream(stream_config).await
             .map_err(|e| DomainError::ExternalServiceError {
                 service: "NATS JetStream".to_string(),
-                message: format!("Failed to create stream: {}", e),
+                message: format!("Failed to create stream: {e}"),
             })?;
         
         Ok(Self {
@@ -126,7 +126,7 @@ impl EventStore for NatsEventStore {
             self.jetstream.publish(subject, payload.into()).await
                 .map_err(|e| DomainError::ExternalServiceError {
                     service: "NATS JetStream".to_string(),
-                    message: format!("Failed to publish event: {}", e),
+                    message: format!("Failed to publish event: {e}"),
                 })?;
         }
         
@@ -142,7 +142,7 @@ impl EventStore for NatsEventStore {
         aggregate_id: PersonId,
         from_version: u64,
     ) -> DomainResult<Vec<EventEnvelope>> {
-        let subject_filter = format!("person.events.{}.>", aggregate_id);
+        let subject_filter = format!("person.events.{aggregate_id}.>");
         
         let consumer_config = jetstream::consumer::pull::Config {
             filter_subject: subject_filter,
@@ -154,20 +154,20 @@ impl EventStore for NatsEventStore {
             .await
             .map_err(|e| DomainError::ExternalServiceError {
                 service: "NATS JetStream".to_string(),
-                message: format!("Failed to create consumer: {}", e),
+                message: format!("Failed to create consumer: {e}"),
             })?;
         
         let mut events = Vec::new();
         let mut messages = consumer.messages().await
             .map_err(|e| DomainError::ExternalServiceError {
                 service: "NATS JetStream".to_string(),
-                message: format!("Failed to get messages: {}", e),
+                message: format!("Failed to get messages: {e}"),
             })?;
         
         while let Some(msg) = messages.next().await {
             let msg = msg.map_err(|e| DomainError::ExternalServiceError {
                 service: "NATS JetStream".to_string(),
-                message: format!("Failed to get message: {}", e),
+                message: format!("Failed to get message: {e}"),
             })?;
             
             let envelope: EventEnvelope = serde_json::from_slice(&msg.payload)
@@ -180,7 +180,7 @@ impl EventStore for NatsEventStore {
             msg.ack().await
                 .map_err(|e| DomainError::ExternalServiceError {
                     service: "NATS JetStream".to_string(),
-                    message: format!("Failed to ack message: {}", e),
+                    message: format!("Failed to ack message: {e}"),
                 })?;
         }
         
@@ -212,7 +212,7 @@ impl PersonCommandHandler {
             .await
             .map_err(|e| DomainError::ExternalServiceError {
                 service: "NATS".to_string(),
-                message: format!("Failed to subscribe: {}", e),
+                message: format!("Failed to subscribe: {e}"),
             })?;
         
         while let Some(msg) = subscription.next().await {
@@ -229,12 +229,12 @@ impl PersonCommandHandler {
                         self.client.publish(reply, payload.into()).await
                             .map_err(|e| DomainError::ExternalServiceError {
                                 service: "NATS".to_string(),
-                                message: format!("Failed to send reply: {}", e),
+                                message: format!("Failed to send reply: {e}"),
                             })?;
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error handling command: {}", e);
+                    eprintln!("Error handling command: {e}");
                 }
             }
         }
@@ -263,7 +263,7 @@ impl PersonCommandHandler {
                 if matches!(command, PersonCommand::CreatePerson(_)) {
                     Person::empty()
                 } else {
-                    return Err(DomainError::AggregateNotFound(format!("Person {}", aggregate_id)));
+                    return Err(DomainError::AggregateNotFound(format!("Person {aggregate_id}")));
                 }
             }
         };
@@ -304,11 +304,11 @@ mod tests {
         assert_eq!(PersonSubjects::events(), "person.events.>");
         assert_eq!(
             PersonSubjects::command_for(person_id),
-            format!("person.commands.{}", person_id)
+            format!("person.commands.{person_id}")
         );
         assert_eq!(
             PersonSubjects::event_for(person_id, "created"),
-            format!("person.events.{}.created", person_id)
+            format!("person.events.{person_id}.created")
         );
     }
 } 

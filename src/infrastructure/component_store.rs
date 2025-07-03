@@ -265,7 +265,7 @@ impl InMemoryComponentStore {
                 _ => Err(DomainError::ValidationError("Component type not supported for update".to_string()))
             }
         } else {
-            Err(DomainError::generic(format!("Component {} not found", component_id)))
+            Err(DomainError::generic(format!("Component {component_id} not found")))
         }
     }
 }
@@ -366,7 +366,7 @@ impl ComponentStore for InMemoryComponentStore {
         let mut components = self.components.write().await;
         
         if !components.contains_key(&id) {
-            return Err(DomainError::generic(format!("Component {} not found", id)));
+            return Err(DomainError::generic(format!("Component {id} not found")));
         }
         
         components.insert(id, stored);
@@ -391,7 +391,7 @@ impl ComponentStore for InMemoryComponentStore {
             
             Ok(())
         } else {
-            Err(DomainError::generic(format!("Component {} not found", id)))
+            Err(DomainError::generic(format!("Component {id} not found")))
         }
     }
     
@@ -448,7 +448,7 @@ mod tests {
         // Store multiple email components
         for i in 0..3 {
             let email_data = EmailComponentData {
-                email: EmailAddress::new(format!("test{}@example.com", i)).expect("Valid email"),
+                email: EmailAddress::new(format!("test{i}@example.com")).expect("Valid email"),
                 email_type: crate::components::data::EmailType::Personal,
                 is_preferred_contact: i == 0,
                 can_receive_notifications: true,

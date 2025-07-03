@@ -115,7 +115,7 @@ impl PersonProjection for PersonTimelineProjection {
                     event_type: "name_updated".to_string(),
                     title: "Name Changed".to_string(),
                     description: format!("Name changed from {} to {}", 
-                        e.old_name.display_name(), 
+                        e.old_name.display_name(),
                         e.new_name.display_name()
                     ),
                     metadata,
@@ -174,17 +174,17 @@ impl PersonProjection for PersonTimelineProjection {
                     ComponentData::Contact(contact) => {
                         let contact_type = contact.contact_type();
                         (
-                            format!("{}_updated", contact_type),
-                            format!("{} Updated", contact_type),
-                            format!("{} information updated", contact_type)
+                            format!("{contact_type}_updated"),
+                            format!("{contact_type} Updated"),
+                            format!("{contact_type} information updated")
                         )
                     }
                     ComponentData::Professional(prof) => {
                         let prof_type = prof.professional_type();
                         (
-                            format!("{}_updated", prof_type),
-                            format!("{} Updated", prof_type),
-                            format!("{} information updated", prof_type)
+                            format!("{prof_type}_updated"),
+                            format!("{prof_type} Updated"),
+                            format!("{prof_type} information updated")
                         )
                     }
                     ComponentData::Location(_) => (
@@ -195,9 +195,9 @@ impl PersonProjection for PersonTimelineProjection {
                     ComponentData::Social(social) => {
                         let social_type = social.social_type();
                         (
-                            format!("{}_updated", social_type),
-                            format!("{} Updated", social_type),
-                            format!("{} information updated", social_type)
+                            format!("{social_type}_updated"),
+                            format!("{social_type} Updated"),
+                            format!("{social_type} information updated")
                         )
                     }
                     ComponentData::Preferences(_) => (
