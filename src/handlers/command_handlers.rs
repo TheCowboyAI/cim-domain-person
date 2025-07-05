@@ -30,5 +30,5 @@ pub fn handle_person_command(
     command: PersonCommand,
 ) -> DomainResult<Vec<PersonEvent>> {
     person.handle_command(command)
-        .map_err(|e| DomainError::ValidationError(e))
+        .map_err(DomainError::ValidationError)
 }

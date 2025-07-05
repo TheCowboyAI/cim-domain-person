@@ -110,6 +110,12 @@ pub struct PersonSearchProjection {
     index: Arc<RwLock<HashMap<PersonId, SearchEntry>>>,
 }
 
+impl Default for PersonSearchProjection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonSearchProjection {
     pub fn new() -> Self {
         Self {

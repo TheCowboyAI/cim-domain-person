@@ -38,6 +38,12 @@ pub struct InMemorySnapshotStore {
     snapshots: Arc<RwLock<HashMap<PersonId, Vec<PersonSnapshot>>>>,
 }
 
+impl Default for InMemorySnapshotStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemorySnapshotStore {
     pub fn new() -> Self {
         Self {

@@ -14,6 +14,12 @@ pub struct PersonSummaryProjection {
     summaries: Arc<RwLock<HashMap<PersonId, PersonSummary>>>,
 }
 
+impl Default for PersonSummaryProjection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonSummaryProjection {
     pub fn new() -> Self {
         Self {

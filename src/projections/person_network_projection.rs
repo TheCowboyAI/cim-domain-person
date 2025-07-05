@@ -55,6 +55,12 @@ pub struct PersonNetworkProjection {
     reverse_adjacency: Arc<RwLock<HashMap<PersonId, HashSet<PersonId>>>>,
 }
 
+impl Default for PersonNetworkProjection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonNetworkProjection {
     pub fn new() -> Self {
         Self {

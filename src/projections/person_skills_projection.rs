@@ -42,6 +42,12 @@ pub struct PersonSkillsProjection {
     statistics: Arc<RwLock<SkillStatistics>>,
 }
 
+impl Default for PersonSkillsProjection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonSkillsProjection {
     pub fn new() -> Self {
         Self {

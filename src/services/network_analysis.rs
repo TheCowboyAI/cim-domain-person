@@ -58,6 +58,12 @@ pub struct NetworkCommunity {
     pub primary_types: Vec<String>,
 }
 
+impl Default for NetworkAnalysisService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NetworkAnalysisService {
     pub fn new() -> Self {
         Self {
@@ -69,7 +75,7 @@ impl NetworkAnalysisService {
     pub fn add_relationship(&mut self, from: Uuid, relation: ProfessionalNetworkRelation) {
         self.relationships
             .entry(from)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(relation.clone());
         
         // Add reverse relationship for undirected graph
@@ -80,7 +86,7 @@ impl NetworkAnalysisService {
         
         self.relationships
             .entry(relation.other_person_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(reverse);
     }
     

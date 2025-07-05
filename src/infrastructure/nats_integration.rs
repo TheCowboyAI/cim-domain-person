@@ -270,7 +270,7 @@ impl PersonCommandHandler {
         
         // Handle command
         let events = person.handle_command(command)
-            .map_err(|e| DomainError::ValidationError(e))?;
+            .map_err(DomainError::ValidationError)?;
         
         // Save events
         let expected_version = if person.version == 0 { None } else { Some(person.version) };

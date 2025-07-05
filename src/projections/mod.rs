@@ -42,6 +42,12 @@ pub struct ProjectionManager {
     projections: Vec<Arc<dyn PersonProjection>>,
 }
 
+impl Default for ProjectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProjectionManager {
     pub fn new() -> Self {
         Self {

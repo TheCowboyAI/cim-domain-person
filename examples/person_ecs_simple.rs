@@ -55,7 +55,7 @@ fn demo_component_registration(person: &mut Person) {
         Err(e) => println!("✗ Failed to register Skill: {e}"),
     }
     
-    println!("\nTotal components registered: {person.components.len(}"));
+    println!("\nTotal components registered: {}", person.components.len());
     println!();
 }
 
@@ -152,5 +152,5 @@ fn demo_lifecycle(person: &mut Person) {
     // Reactivate
     println!("\nReactivating person...");
     person.lifecycle = PersonLifecycle::Active;
-    println!("Person is now active: {person.is_active(}"));
+    println!("Person is now active: {}", person.is_active());
 } 

@@ -15,6 +15,12 @@ pub struct PersonTimelineProjection {
     timelines: Arc<RwLock<HashMap<PersonId, Vec<TimelineEntry>>>>,
 }
 
+impl Default for PersonTimelineProjection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonTimelineProjection {
     pub fn new() -> Self {
         Self {
@@ -126,7 +132,7 @@ impl PersonProjection for PersonTimelineProjection {
             
             PersonEvent::BirthDateSet(e) => {
                 let mut metadata = HashMap::new();
-                metadata.insert("birth_date".to_string(), serde_json::to_value(&e.birth_date).unwrap());
+                metadata.insert("birth_date".to_string(), serde_json::to_value(e.birth_date).unwrap());
                 
                 let entry = TimelineEntry {
                     timestamp: e.set_at,
@@ -141,7 +147,7 @@ impl PersonProjection for PersonTimelineProjection {
             
             PersonEvent::DeathRecorded(e) => {
                 let mut metadata = HashMap::new();
-                metadata.insert("date_of_death".to_string(), serde_json::to_value(&e.date_of_death).unwrap());
+                metadata.insert("date_of_death".to_string(), serde_json::to_value(e.date_of_death).unwrap());
                 
                 let entry = TimelineEntry {
                     timestamp: e.recorded_at,
@@ -156,7 +162,7 @@ impl PersonProjection for PersonTimelineProjection {
             
             PersonEvent::ComponentRegistered(e) => {
                 let mut metadata = HashMap::new();
-                metadata.insert("component_type".to_string(), serde_json::to_value(&e.component_type).unwrap());
+                metadata.insert("component_type".to_string(), serde_json::to_value(e.component_type).unwrap());
                 
                 let entry = TimelineEntry {
                     timestamp: e.registered_at,
@@ -208,7 +214,7 @@ impl PersonProjection for PersonTimelineProjection {
                 };
                 
                 let mut metadata = HashMap::new();
-                metadata.insert("component_id".to_string(), serde_json::to_value(&e.component_id).unwrap());
+                metadata.insert("component_id".to_string(), serde_json::to_value(e.component_id).unwrap());
                 
                 let entry = TimelineEntry {
                     timestamp: e.updated_at,
@@ -250,7 +256,7 @@ impl PersonProjection for PersonTimelineProjection {
             
             PersonEvent::PersonMergedInto(e) => {
                 let mut metadata = HashMap::new();
-                metadata.insert("merged_into_id".to_string(), serde_json::to_value(&e.merged_into_id).unwrap());
+                metadata.insert("merged_into_id".to_string(), serde_json::to_value(e.merged_into_id).unwrap());
                 
                 let entry = TimelineEntry {
                     timestamp: e.merged_at,

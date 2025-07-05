@@ -51,6 +51,12 @@ pub struct InMemoryEventStore {
     events: Arc<RwLock<HashMap<PersonId, Vec<EventEnvelope>>>>,
 }
 
+impl Default for InMemoryEventStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryEventStore {
     pub fn new() -> Self {
         Self {

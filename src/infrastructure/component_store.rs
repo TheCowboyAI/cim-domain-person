@@ -73,6 +73,12 @@ struct StoredComponent {
     data: serde_json::Value,
 }
 
+impl Default for InMemoryComponentStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryComponentStore {
     pub fn new() -> Self {
         Self {
@@ -135,7 +141,7 @@ impl InMemoryComponentStore {
                     let instance = ComponentInstance::new(person_id, data)?;
                     self.store_component(instance).await
                 }
-                SocialData::Relationship(data) => {
+                SocialData::Relationship(_data) => {
                     // Handle relationship data
                     Err(DomainError::ValidationError("Relationship components not yet implemented".to_string()))
                 }

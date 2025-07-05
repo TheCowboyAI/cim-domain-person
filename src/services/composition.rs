@@ -10,6 +10,12 @@ use cim_domain::DomainResult;
 /// Service for composing person entities with components
 pub struct PersonCompositionService;
 
+impl Default for PersonCompositionService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonCompositionService {
     /// Create a new service instance
     pub fn new() -> Self {

@@ -180,7 +180,7 @@ impl ComponentCommandHandler {
             ComponentDataEvent::EmailAdded { email, email_type, is_preferred, .. } => {
                 ComponentData::Contact(ContactData::Email(EmailData {
                     email: EmailAddress::new(email.clone()).unwrap(),
-                    email_type: email_type.clone(),
+                    email_type: *email_type,
                     is_preferred_contact: *is_preferred,
                     can_receive_notifications: true,
                     can_receive_marketing: false,
@@ -189,7 +189,7 @@ impl ComponentCommandHandler {
             ComponentDataEvent::PhoneAdded { phone_number, phone_type, country_code, is_mobile, .. } => {
                 ComponentData::Contact(ContactData::Phone(PhoneData {
                     phone: PhoneNumber::new(phone_number.clone()).unwrap(),
-                    phone_type: phone_type.clone(),
+                    phone_type: *phone_type,
                     country_code: country_code.clone(),
                     is_mobile: *is_mobile,
                     can_receive_sms: true,
@@ -201,7 +201,7 @@ impl ComponentCommandHandler {
                 ComponentData::Professional(ProfessionalData::Skills(SkillsData {
                     skills: vec![Skill {
                         name: skill_name.clone(),
-                        category: format!("{:?}", category),
+                        category: format!("{category:?}"),
                         proficiency: format!("{proficiency:?}"),
                         years_experience: None,
                         last_used: None,
@@ -213,7 +213,7 @@ impl ComponentCommandHandler {
             }
             ComponentDataEvent::SocialProfileAdded { platform, username, profile_url, .. } => {
                 ComponentData::Social(SocialData::SocialMedia(SocialMediaData {
-                    platform: platform.clone(),
+                    platform: *platform,
                     username: username.clone(),
                     profile_url: profile_url.clone(),
                     display_name: None,
@@ -231,7 +231,7 @@ impl ComponentCommandHandler {
                     position: job_title.clone(),
                     start_date: start_date.date_naive(),
                     end_date: None,
-                    employment_type: employment_type.clone(),
+                    employment_type: *employment_type,
                     is_current: true,
                     description: None,
                     achievements: vec![],
@@ -287,8 +287,8 @@ impl ComponentCommandHandler {
         // Create email component data
         let email_data = EmailComponentData {
             email: EmailAddress::new(email.clone())
-                .map_err(|e| DomainError::ValidationError(e))?,
-            email_type: email_type.clone(),
+                .map_err(DomainError::ValidationError)?,
+            email_type: email_type,
             is_preferred_contact: is_preferred,
             can_receive_notifications,
             can_receive_marketing,
@@ -330,7 +330,7 @@ impl ComponentCommandHandler {
         // Apply changes
         if let Some(new_email) = &changes.email {
             component.data.email = EmailAddress::new(new_email.clone())
-                .map_err(|e| DomainError::ValidationError(e))?;
+                .map_err(DomainError::ValidationError)?;
         }
         if let Some(new_type) = changes.email_type {
             component.data.email_type = new_type;
@@ -391,8 +391,8 @@ impl ComponentCommandHandler {
         // Create phone component data
         let phone_data = PhoneComponentData {
             phone: PhoneNumber::new(phone_number.clone())
-                .map_err(|e| DomainError::ValidationError(e))?,
-            phone_type: phone_type.clone(),
+                .map_err(DomainError::ValidationError)?,
+            phone_type: phone_type,
             country_code: country_code.clone(),
             is_mobile,
             can_receive_sms,
@@ -429,8 +429,8 @@ impl ComponentCommandHandler {
         // Create skill component data
         let skill_data = SkillComponentData {
             name: skill_name.clone(),
-            category: category.clone(),
-            proficiency: proficiency.clone(),
+            category: category,
+            proficiency: proficiency,
             years_of_experience,
             last_used: None,
             verified: false,
@@ -522,7 +522,7 @@ impl ComponentCommandHandler {
     ) -> DomainResult<Vec<ComponentDataEvent>> {
         // Create social profile component data
         let social_data = SocialMediaProfileData {
-            platform: platform.clone(),
+            platform: platform,
             username: username.clone(),
             profile_url: profile_url.clone(),
             display_name,
@@ -570,7 +570,7 @@ impl ComponentCommandHandler {
             position: job_title.clone(),
             start_date: start_date.date_naive(),
             end_date: if is_current { None } else { Some(chrono::Utc::now().date_naive()) },
-            employment_type: employment_type.clone(),
+            employment_type: employment_type,
             is_current,
             description: None,
             achievements: vec![],
@@ -693,10 +693,10 @@ impl ComponentCommandHandler {
                 // Apply changes
                 if let Some(new_number) = &changes.phone_number {
                     phone.phone = PhoneNumber::new(new_number.clone())
-                        .map_err(|e| DomainError::ValidationError(e))?;
+                        .map_err(DomainError::ValidationError)?;
                 }
                 if let Some(new_type) = &changes.phone_type {
-                    phone.phone_type = new_type.clone();
+                    phone.phone_type = *new_type;
                 }
                 if let Some(sms) = changes.can_receive_sms {
                     phone.can_receive_sms = sms;
@@ -751,7 +751,7 @@ impl ComponentCommandHandler {
         if let Some(mut component) = existing {
             // Apply changes
             if let Some(prof) = &changes.proficiency {
-                component.data.proficiency = prof.clone();
+                component.data.proficiency = *prof;
             }
             if let Some(years) = changes.years_of_experience {
                 component.data.years_of_experience = Some(years);

@@ -253,6 +253,12 @@ impl PartnerViewBuilder {
 /// Service for managing person views
 pub struct PersonViewService;
 
+impl Default for PersonViewService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PersonViewService {
     /// Create a new service instance
     pub fn new() -> Self {

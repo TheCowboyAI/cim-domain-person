@@ -440,7 +440,7 @@ impl Person {
     }
     
     fn apply_component_registered(&mut self, event: &ComponentRegistered) -> DomainResult<()> {
-        self.components.insert(event.component_type.clone());
+        self.components.insert(event.component_type);
         self.core_identity.updated_at = event.registered_at;
         self.increment_version();
         Ok(())
