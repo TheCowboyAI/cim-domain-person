@@ -99,6 +99,7 @@ pub enum PersonAddressEvent {
 }
 
 /// Service for coordinating person-address operations across domains
+#[allow(async_fn_in_trait)]
 pub trait PersonAddressService {
     /// Get all addresses for a person
     async fn get_person_addresses(&self, person_id: PersonId) -> Result<Vec<(PersonAddress, Address)>, String>;
