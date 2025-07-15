@@ -230,12 +230,12 @@ pub struct TimePeriod {
 
 /// Service for agent-related operations
 pub struct AgentIntegrationService {
-    person_repository: Arc<PersonRepository>,
+    _person_repository: Arc<PersonRepository>,
 }
 
 impl AgentIntegrationService {
     pub fn new(person_repository: Arc<PersonRepository>) -> Self {
-        Self { person_repository }
+        Self { _person_repository: person_repository }
     }
     
     /// Check if a person has any assigned agents

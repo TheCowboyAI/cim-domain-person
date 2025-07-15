@@ -39,7 +39,7 @@ impl PersonSubjects {
 
 /// NATS-based event store implementation
 pub struct NatsEventStore {
-    client: Client,
+    _client: Client,
     jetstream: jetstream::Context,
     stream_name: String,
 }
@@ -66,7 +66,7 @@ impl NatsEventStore {
             })?;
         
         Ok(Self {
-            client,
+            _client: client,
             jetstream,
             stream_name,
         })
