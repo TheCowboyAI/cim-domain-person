@@ -4,7 +4,6 @@
 use chrono::Utc;
 use cim_domain_person::{
     aggregate::{ComponentType, Person, PersonId},
-    commands::*,
     events::*,
     value_objects::PersonName,
 };
@@ -21,7 +20,7 @@ use cim_domain_person::{
 /// ```
 #[test]
 fn test_person_missing_accessor_methods() {
-    let person = Person::new(
+    let _person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
@@ -40,13 +39,13 @@ fn test_person_missing_accessor_methods() {
 /// Test that register_component should track who registered it
 #[test]
 fn test_register_component_missing_user_tracking() {
-    let mut person = Person::new(
+    let mut _person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
 
     // The current API doesn't support tracking WHO registered the component
-    let result = person.register_component(ComponentType::EmailAddress);
+    let _result = _person.register_component(ComponentType::EmailAddress);
 
     // But the user stories require tracking this for audit!
     // We need: person.register_component(ComponentType::EmailAddress, "hr_system")
@@ -57,7 +56,7 @@ fn test_register_component_missing_user_tracking() {
 /// Test that Person aggregate is missing lifecycle management methods
 #[test]
 fn test_person_missing_lifecycle_methods() {
-    let person = Person::new(
+    let _person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
@@ -76,7 +75,7 @@ fn test_person_missing_lifecycle_methods() {
 fn test_events_missing_audit_fields() {
     // Looking at the actual events, they're missing WHO performed the action
 
-    let event = PersonEvent::ComponentRegistered(ComponentRegistered {
+    let _event = PersonEvent::ComponentRegistered(ComponentRegistered {
         person_id: PersonId::new(),
         component_type: ComponentType::EmailAddress,
         registered_at: Utc::now(),
@@ -117,7 +116,7 @@ fn test_merge_reason_missing_variants() {
 /// Test that Person aggregate can't update its own lifecycle
 #[test]
 fn test_person_cant_update_own_lifecycle() {
-    let person = Person::new(
+    let _person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
@@ -135,25 +134,26 @@ fn test_person_cant_update_own_lifecycle() {
 /// Test that command handlers don't actually update aggregate state
 #[test]
 fn test_command_handlers_dont_update_state() {
-    let mut person = Person::new(
+    let mut _person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
 
     // Deactivate the person
-    let cmd = PersonCommand::DeactivatePerson(DeactivatePerson {
-        person_id: person.id,
-        reason: "Test".to_string(),
-    });
-
-    let result = person.handle_command(cmd);
-    assert!(result.is_ok());
-
-    // But the person is STILL ACTIVE!
-    assert!(
-        person.is_active(),
-        "Command handler didn't actually update the state!"
-    );
+    // This code doesn't compile because these methods don't exist - which is the point of this test
+    // let cmd = PersonCommand::DeactivatePerson(DeactivatePerson {
+    //     person_id: person.id,
+    //     reason: "Test".to_string(),
+    // });
+    //
+    // let result = person.handle_command(cmd);
+    // assert!(result.is_ok());
+    //
+    // // But the person is STILL ACTIVE!
+    // assert!(
+    //     person.is_active(),
+    //     "Command handler didn't actually update the state!"
+    // );
 
     panic!("Command handlers generate events but don't apply them to aggregate!");
 }
@@ -161,9 +161,9 @@ fn test_command_handlers_dont_update_state() {
 /// Test that there's no event replay mechanism
 #[test]
 fn test_missing_event_replay() {
-    let person = Person::empty();
+    let _person = Person::empty();
 
-    let events = vec![
+    let _events = vec![
         PersonEvent::PersonCreated(PersonCreated {
             person_id: PersonId::new(),
             name: PersonName::new("Test".to_string(), "User".to_string()),
@@ -197,15 +197,15 @@ fn test_person_name_missing_validation() {
 /// Test that there's no way to query components
 #[test]
 fn test_missing_component_queries() {
-    let mut person = Person::new(
+    let mut _person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
 
-    person
+    _person
         .register_component(ComponentType::EmailAddress)
         .unwrap();
-    person
+    _person
         .register_component(ComponentType::PhoneNumber)
         .unwrap();
 
@@ -235,7 +235,7 @@ fn test_missing_cross_domain_relationships() {
 /// Test that privacy/GDPR features are missing
 #[test]
 fn test_missing_privacy_features() {
-    let person = Person::new(
+    let _person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );

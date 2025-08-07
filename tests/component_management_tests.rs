@@ -168,7 +168,7 @@ fn test_proficiency_levels() {
         for (j, other) in levels.iter().enumerate() {
             if i == j {
                 // Same index should match
-                assert!(matches!(level, other));
+                assert!(std::ptr::eq(level, other));
             } else {
                 // Different indices should have different values
                 match (level, other) {

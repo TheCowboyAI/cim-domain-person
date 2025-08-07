@@ -227,7 +227,7 @@ async fn test_skill_component_management() {
     let events = handler.handle(skill_cmd).await.unwrap();
 
     assert_eq!(events.len(), 1);
-    let skill_id = match &events[0] {
+    let _skill_id = match &events[0] {
         ComponentDataEvent::SkillAdded {
             component_id,
             skill_name,

@@ -20,7 +20,7 @@ struct PersonOrganizationRelation {
     relation_type: OrgRelationType,
     role: Option<String>,
     department: Option<String>,
-    start_date: NaiveDate,
+    _start_date: NaiveDate,
     end_date: Option<NaiveDate>,
     is_primary: bool,
     manager_id: Option<Uuid>,
@@ -83,7 +83,7 @@ fn test_establish_employment_relationship() {
         relation_type: OrgRelationType::Employee,
         role: Some("Software Engineer".to_string()),
         department: Some("Engineering".to_string()),
-        start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        _start_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         end_date: None,
         is_primary: true,
         manager_id: Some(manager_id.into()),
@@ -114,7 +114,7 @@ fn test_multiple_concurrent_employments() {
         relation_type: OrgRelationType::Employee,
         role: Some("Full-time Developer".to_string()),
         department: Some("Engineering".to_string()),
-        start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+        _start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
         end_date: None,
         is_primary: true,
         manager_id: None,
@@ -126,7 +126,7 @@ fn test_multiple_concurrent_employments() {
         relation_type: OrgRelationType::Contractor,
         role: Some("Consultant".to_string()),
         department: None,
-        start_date: NaiveDate::from_ymd_opt(2023, 6, 1).unwrap(),
+        _start_date: NaiveDate::from_ymd_opt(2023, 6, 1).unwrap(),
         end_date: None,
         is_primary: false,
         manager_id: None,
@@ -324,6 +324,7 @@ fn test_map_professional_networks() {
 fn test_person_relationship_types() {
     // Define various relationship types (would be in value objects)
     #[derive(Debug, PartialEq)]
+    #[allow(dead_code)]
     enum PersonRelationshipType {
         Manager,
         DirectReport,
