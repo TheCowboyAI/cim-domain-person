@@ -1,19 +1,18 @@
 //! Integration tests for component store functionality
 
-use chrono::Utc;
 use cim_domain_person::{
     aggregate::{ComponentType, Person, PersonId},
     commands::{ComponentCommand, CreatePerson, PersonCommand, RegisterComponent},
     components::data::{
-        ComponentInstanceId, EmailType, PhoneType, ProficiencyLevel, SkillCategory,
+        EmailType, PhoneType, ProficiencyLevel, SkillCategory,
     },
-    events::{ComponentDataEvent, PersonEvent},
+    events::ComponentDataEvent,
     handlers::ComponentCommandHandler,
     infrastructure::{
         ComponentStore, InMemoryComponentStore, InMemoryEventStore, InMemorySnapshotStore,
         PersonRepository,
     },
-    value_objects::{EmailAddress, PersonName, PhoneNumber},
+    value_objects::PersonName,
 };
 use std::sync::Arc;
 
@@ -82,17 +81,7 @@ async fn test_add_email_component_full_flow() {
         can_receive_marketing: false,
     };
 
-    let events = handler
-        .handle_add_email(
-            person_id,
-            "test@example.com".to_string(),
-            EmailType::Personal,
-            true,
-            true,
-            false,
-        )
-        .await
-        .unwrap();
+    let events = handler.handle(cmd).await.unwrap();
 
     assert_eq!(events.len(), 1);
     match &events[0] {
@@ -152,17 +141,15 @@ async fn test_update_email_component() {
         .unwrap();
 
     // Add email first
-    let add_events = handler
-        .handle_add_email(
-            person_id,
-            "old@example.com".to_string(),
-            EmailType::Work,
-            false,
-            true,
-            true,
-        )
-        .await
-        .unwrap();
+    let add_cmd = ComponentCommand::AddEmail {
+        person_id,
+        email: "old@example.com".to_string(),
+        email_type: EmailType::Work,
+        is_preferred: false,
+        can_receive_notifications: true,
+        can_receive_marketing: true,
+    };
+    let add_events = handler.handle(add_cmd).await.unwrap();
 
     let component_id = match &add_events[0] {
         ComponentDataEvent::EmailAdded { component_id, .. } => *component_id,
@@ -170,18 +157,16 @@ async fn test_update_email_component() {
     };
 
     // Update email
-    let update_events = handler
-        .handle_update_email(
-            person_id,
-            component_id,
-            Some("new@example.com".to_string()),
-            Some(EmailType::Personal),
-            Some(true),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+    let update_cmd = ComponentCommand::UpdateEmail {
+        person_id,
+        component_id,
+        email: Some("new@example.com".to_string()),
+        email_type: Some(EmailType::Personal),
+        is_preferred: Some(true),
+        can_receive_notifications: None,
+        can_receive_marketing: None,
+    };
+    let update_events = handler.handle(update_cmd).await.unwrap();
 
     assert_eq!(update_events.len(), 1);
     match &update_events[0] {
@@ -232,16 +217,14 @@ async fn test_skill_component_management() {
         .unwrap();
 
     // Add skill
-    let events = handler
-        .handle_add_skill(
-            person_id,
-            "Rust Programming".to_string(),
-            SkillCategory::Technical,
-            ProficiencyLevel::Expert,
-            Some(5.0),
-        )
-        .await
-        .unwrap();
+    let skill_cmd = ComponentCommand::AddSkill {
+        person_id,
+        skill_name: "Rust Programming".to_string(),
+        category: SkillCategory::Technical,
+        proficiency: ProficiencyLevel::Expert,
+        years_of_experience: Some(5.0),
+    };
+    let events = handler.handle(skill_cmd).await.unwrap();
 
     assert_eq!(events.len(), 1);
     let skill_id = match &events[0] {
@@ -311,17 +294,15 @@ async fn test_multiple_components_same_type() {
     ];
 
     for (email, email_type, is_preferred) in emails {
-        handler
-            .handle_add_email(
-                person_id,
-                email.to_string(),
-                email_type,
-                is_preferred,
-                true,
-                false,
-            )
-            .await
-            .unwrap();
+        let cmd = ComponentCommand::AddEmail {
+            person_id,
+            email: email.to_string(),
+            email_type,
+            is_preferred,
+            can_receive_notifications: true,
+            can_receive_marketing: false,
+        };
+        handler.handle(cmd).await.unwrap();
     }
 
     // Verify all emails are stored
@@ -369,20 +350,18 @@ async fn test_remove_component() {
         .unwrap();
 
     // Add phone
-    let add_events = handler
-        .handle_add_phone(
-            person_id,
-            "+1234567890".to_string(),
-            PhoneType::Mobile,
-            "+1".to_string(), // country_code
-            true,             // is_mobile
-            true,             // can_receive_sms
-            true,             // can_receive_calls
-        )
-        .await
-        .unwrap();
+    let phone_cmd = ComponentCommand::AddPhone {
+        person_id,
+        phone_number: "+1234567890".to_string(),
+        phone_type: PhoneType::Mobile,
+        country_code: "+1".to_string(),
+        is_mobile: true,
+        can_receive_sms: true,
+        can_receive_calls: true,
+    };
+    let add_events = handler.handle(phone_cmd).await.unwrap();
 
-    let component_id = match &add_events[0] {
+    let _component_id = match &add_events[0] {
         ComponentDataEvent::PhoneAdded { component_id, .. } => *component_id,
         _ => panic!("Expected PhoneAdded event"),
     };
@@ -437,52 +416,44 @@ async fn test_cross_component_queries() {
     }
 
     // Add components to person1
-    handler
-        .handle_add_email(
-            person1,
-            "alice@example.com".to_string(),
-            EmailType::Work,
-            true,
-            true,
-            false,
-        )
-        .await
-        .unwrap();
+    let email_cmd1 = ComponentCommand::AddEmail {
+        person_id: person1,
+        email: "alice@example.com".to_string(),
+        email_type: EmailType::Work,
+        is_preferred: true,
+        can_receive_notifications: true,
+        can_receive_marketing: false,
+    };
+    handler.handle(email_cmd1).await.unwrap();
 
-    handler
-        .handle_add_skill(
-            person1,
-            "Python".to_string(),
-            SkillCategory::Technical,
-            ProficiencyLevel::Advanced,
-            Some(3.0),
-        )
-        .await
-        .unwrap();
+    let skill_cmd1 = ComponentCommand::AddSkill {
+        person_id: person1,
+        skill_name: "Python".to_string(),
+        category: SkillCategory::Technical,
+        proficiency: ProficiencyLevel::Advanced,
+        years_of_experience: Some(3.0),
+    };
+    handler.handle(skill_cmd1).await.unwrap();
 
     // Add components to person2
-    handler
-        .handle_add_email(
-            person2,
-            "bob@example.com".to_string(),
-            EmailType::Personal,
-            true,
-            false,
-            true,
-        )
-        .await
-        .unwrap();
+    let email_cmd2 = ComponentCommand::AddEmail {
+        person_id: person2,
+        email: "bob@example.com".to_string(),
+        email_type: EmailType::Personal,
+        is_preferred: true,
+        can_receive_notifications: false,
+        can_receive_marketing: true,
+    };
+    handler.handle(email_cmd2).await.unwrap();
 
-    handler
-        .handle_add_skill(
-            person2,
-            "Rust".to_string(),
-            SkillCategory::Technical,
-            ProficiencyLevel::Expert,
-            Some(5.0),
-        )
-        .await
-        .unwrap();
+    let skill_cmd2 = ComponentCommand::AddSkill {
+        person_id: person2,
+        skill_name: "Rust".to_string(),
+        category: SkillCategory::Technical,
+        proficiency: ProficiencyLevel::Expert,
+        years_of_experience: Some(5.0),
+    };
+    handler.handle(skill_cmd2).await.unwrap();
 
     // Query components by type for each person
     let person1_emails = component_store

@@ -5,8 +5,8 @@ use cim_domain_person::{
     aggregate::{ComponentType, Person, PersonId},
     commands::PersonCommand,
     cross_domain::{
-        AddressType, AddressUsageType, AgentDomainEvent, AgentEventHandler, AgentType,
-        CrossDomainCommand, CrossDomainEvent, GitDomainEvent, GitEventHandler, IdentityDomainEvent,
+        AddressType, AddressUsageType, AgentDomainEvent, AgentEventHandler,
+        CrossDomainCommand, GitDomainEvent, GitEventHandler, IdentityDomainEvent,
         IdentityEventHandler, LanguageStats, LocationDomainEvent, LocationEventHandler,
     },
     infrastructure::{
@@ -356,7 +356,7 @@ async fn test_multi_domain_integration() {
 
     // Apply the events to the person
     if !address_events.is_empty() {
-        let mut person = person_repo.load(person_id).await.unwrap().unwrap();
+        let person = person_repo.load(person_id).await.unwrap().unwrap();
         let current_version = person.version;
         // The events are already in the correct format
         person_repo

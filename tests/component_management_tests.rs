@@ -10,14 +10,13 @@ use cim_domain_person::{
     aggregate::{ComponentType, Person, PersonId, PersonLifecycle},
     commands::*,
     components::{
-        contact::{ContactContext, EmailComponent, PhoneComponent},
-        skills::{CertificationComponent, ProficiencyLevel, SkillCategory, SkillComponent},
+        contact::{ContactContext, EmailComponent},
+        skills::{ProficiencyLevel, SkillCategory, SkillComponent},
         ComponentMetadata,
     },
     events::PersonEvent,
-    value_objects::{EmailAddress, PersonName, PhoneNumber},
+    value_objects::{EmailAddress, PersonName},
 };
-use std::collections::HashMap;
 
 /// Test Story 2.1: Add Email Component
 ///
@@ -159,12 +158,10 @@ fn test_manage_skills() {
 #[test]
 fn test_proficiency_levels() {
     // Test proficiency level ordering
-    let levels = vec![
-        ProficiencyLevel::Beginner,
+    let levels = [ProficiencyLevel::Beginner,
         ProficiencyLevel::Intermediate,
         ProficiencyLevel::Advanced,
-        ProficiencyLevel::Expert,
-    ];
+        ProficiencyLevel::Expert];
 
     // Verify all levels are distinct
     for (i, level) in levels.iter().enumerate() {

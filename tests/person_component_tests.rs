@@ -6,7 +6,6 @@ use cim_domain_person::{
     events::*,
     value_objects::PersonName,
 };
-use std::collections::HashSet;
 
 #[test]
 fn test_component_registration() {
@@ -113,7 +112,7 @@ fn test_multiple_component_types() {
     ];
 
     for comp_type in &component_types {
-        person.register_component(comp_type.clone()).unwrap();
+        person.register_component(*comp_type).unwrap();
     }
 
     assert_eq!(person.components.len(), component_types.len());
@@ -167,7 +166,7 @@ fn test_external_component_types() {
     for ext_type in &external_types {
         let cmd = PersonCommand::RegisterComponent(RegisterComponent {
             person_id,
-            component_type: ext_type.clone(),
+            component_type: *ext_type,
         });
 
         let events = person.handle_command(cmd).unwrap();
@@ -180,7 +179,7 @@ fn test_external_component_types() {
             _ => panic!("Expected ComponentRegistered event"),
         }
 
-        person.register_component(ext_type.clone()).unwrap();
+        person.register_component(*ext_type).unwrap();
     }
 
     assert_eq!(person.components.len(), external_types.len());

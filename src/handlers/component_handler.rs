@@ -288,7 +288,7 @@ impl ComponentCommandHandler {
         let email_data = EmailComponentData {
             email: EmailAddress::new(email.clone())
                 .map_err(DomainError::ValidationError)?,
-            email_type: email_type,
+            email_type,
             is_preferred_contact: is_preferred,
             can_receive_notifications,
             can_receive_marketing,
@@ -392,7 +392,7 @@ impl ComponentCommandHandler {
         let phone_data = PhoneComponentData {
             phone: PhoneNumber::new(phone_number.clone())
                 .map_err(DomainError::ValidationError)?,
-            phone_type: phone_type,
+            phone_type,
             country_code: country_code.clone(),
             is_mobile,
             can_receive_sms,
@@ -429,8 +429,8 @@ impl ComponentCommandHandler {
         // Create skill component data
         let skill_data = SkillComponentData {
             name: skill_name.clone(),
-            category: category,
-            proficiency: proficiency,
+            category,
+            proficiency,
             years_of_experience,
             last_used: None,
             verified: false,
@@ -522,7 +522,7 @@ impl ComponentCommandHandler {
     ) -> DomainResult<Vec<ComponentDataEvent>> {
         // Create social profile component data
         let social_data = SocialMediaProfileData {
-            platform: platform,
+            platform,
             username: username.clone(),
             profile_url: profile_url.clone(),
             display_name,
@@ -570,7 +570,7 @@ impl ComponentCommandHandler {
             position: job_title.clone(),
             start_date: start_date.date_naive(),
             end_date: if is_current { None } else { Some(chrono::Utc::now().date_naive()) },
-            employment_type: employment_type,
+            employment_type,
             is_current,
             description: None,
             achievements: vec![],

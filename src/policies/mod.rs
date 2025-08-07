@@ -43,6 +43,12 @@ pub struct PolicyEngine {
     policies: Vec<Arc<dyn Policy>>,
 }
 
+impl Default for PolicyEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PolicyEngine {
     /// Create a new policy engine
     pub fn new() -> Self {

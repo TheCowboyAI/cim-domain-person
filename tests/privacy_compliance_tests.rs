@@ -5,7 +5,6 @@
 //! - Story 5.2: Control Component Access
 //! - Story 5.3: Export Person Data
 
-use chrono::Utc;
 use cim_domain_person::{
     aggregate::{ComponentType, Person, PersonId, PersonLifecycle},
     commands::{DeactivatePerson, PersonCommand},
@@ -218,7 +217,7 @@ fn test_role_based_component_access() {
 
         // Register components based on role
         for component in &allowed_components {
-            let result = person.register_component(component.clone());
+            let result = person.register_component(*component);
             assert!(
                 result.is_ok(),
                 "Role {} should register {:?}",

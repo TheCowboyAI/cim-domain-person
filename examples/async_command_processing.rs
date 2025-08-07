@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let person_id = PersonId::new();
     let create_cmd = PersonCommand::CreatePerson(CreatePerson {
         person_id,
-        name: PersonName::new("Jane", Some("A".to_string()), "Doe")?,
+        name: PersonName::new("Jane".to_string(), "Doe".to_string()),
         source: "async-example".to_string(),
     });
     

@@ -61,7 +61,7 @@ fn demo_event_versioning() -> Result<(), Box<dyn std::error::Error>> {
     let person_id = PersonId::new();
     let v2_event = PersonCreatedV2 {
         person_id,
-        name: PersonName::new("John", Some("Q".to_string()), "Doe")?,
+        name: PersonName::new("John".to_string(), "Doe".to_string()),
         source: "api".to_string(),
         metadata: EventMetadata::new(),
     };
@@ -83,7 +83,7 @@ async fn demo_policy_engine() -> Result<(), Box<dyn std::error::Error>> {
     let person_id = PersonId::new();
     let created_event = PersonEventV2::Created {
         person_id,
-        name: PersonName::new("Alice", None, "Johnson")?,
+        name: PersonName::new("Alice".to_string(), "Johnson".to_string()),
         source: "web".to_string(),
         metadata: EventMetadata::new(),
     };

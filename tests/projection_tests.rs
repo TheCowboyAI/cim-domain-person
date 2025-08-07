@@ -4,8 +4,7 @@ use chrono::{Utc, NaiveDate};
 use cim_domain_person::{
     aggregate::PersonId,
     components::data::{
-        ComponentData, ContactData, EmailComponentData, EmailType, ProfessionalData,
-        ProficiencyLevel, RelationshipData, Skill, SkillCategory, SkillsData, SocialData,
+        ComponentData, ContactData, EmailComponentData, EmailType, ProfessionalData, RelationshipData, Skill, SkillsData, SocialData,
     },
     events::*,
     projections::*,

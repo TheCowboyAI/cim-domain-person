@@ -28,6 +28,12 @@ pub struct EventVersionRegistry {
     current_versions: HashMap<String, String>,
 }
 
+impl Default for EventVersionRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EventVersionRegistry {
     /// Create a new registry
     pub fn new() -> Self {
@@ -105,7 +111,7 @@ impl EventVersionRegistry {
     /// Find next version in migration path (simplified)
     fn find_next_version(&self, event_type: &str, from: &str, _to: &str) -> DomainResult<String> {
         // This is simplified - just looks for any migration from current version
-        for (key, _) in &self.migrations {
+        for key in self.migrations.keys() {
             if key.0 == event_type && key.1.starts_with(&format!("{}->", from)) {
                 let parts: Vec<&str> = key.1.split("->").collect();
                 if parts.len() == 2 {

@@ -80,7 +80,7 @@ impl RetryHandler {
                     
                     // Add jitter (±10%)
                     let jitter = backoff.as_secs_f64() * 0.1 * (rand::random::<f64>() - 0.5);
-                    backoff = backoff + Duration::from_secs_f64(jitter);
+                    backoff += Duration::from_secs_f64(jitter);
                 }
             }
         }

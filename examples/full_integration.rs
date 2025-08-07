@@ -75,7 +75,7 @@ async fn demo_person_creation(
     let person_id = PersonId::new();
     let create_cmd = PersonCommand::CreatePerson(CreatePerson {
         person_id,
-        name: PersonName::new("Alice", Some("M".to_string()), "Johnson")?,
+        name: PersonName::new("Alice".to_string(), "Johnson".to_string()),
         source: "demo".to_string(),
     });
     
@@ -112,7 +112,7 @@ async fn demo_onboarding_workflow() -> Result<(), Box<dyn std::error::Error>> {
     let person_id = PersonId::new();
     let mut onboarding = OnboardingAggregate::new(
         person_id,
-        PersonName::new("Bob", None, "Smith")?,
+        PersonName::new("Bob".to_string(), "Smith".to_string()),
     );
     
     info!("Starting onboarding for Bob Smith");
@@ -191,7 +191,7 @@ async fn demo_concurrent_processing(
             let person_id = PersonId::new();
             let cmd = PersonCommand::CreatePerson(CreatePerson {
                 person_id,
-                name: PersonName::new(&format!("User{}", i), None, "Concurrent")?,
+                name: PersonName::new(format!("User{}", i), "Concurrent".to_string()),
                 source: "concurrent-demo".to_string(),
             });
             
@@ -224,7 +224,7 @@ async fn demo_full_flow(
     
     let create_cmd = PersonCommand::CreatePerson(CreatePerson {
         person_id,
-        name: PersonName::new("Integration", None, "Test")?,
+        name: PersonName::new("Integration".to_string(), "Test".to_string()),
         source: "full-demo".to_string(),
     });
     

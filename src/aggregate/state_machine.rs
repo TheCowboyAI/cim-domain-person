@@ -12,20 +12,29 @@ pub trait State: Clone + Debug + Eq + Hash + Send + Sync + 'static {}
 /// Trait for state machine commands/triggers
 pub trait Command: Clone + Debug + Send + Sync + 'static {}
 
+/// Type alias for guard functions
+type GuardFn<S, C> = Arc<dyn Fn(&S, &C) -> bool + Send + Sync>;
+
+/// Type alias for action functions
+type ActionFn<S, C> = Arc<dyn Fn(&S, &C) -> DomainResult<()> + Send + Sync>;
+
+/// Type alias for state action functions
+type StateActionFn<S> = Box<dyn Fn(&S) -> DomainResult<()> + Send + Sync>;
+
 /// State transition definition
 pub struct Transition<S: State, C: Command> {
     pub from_state: S,
     pub to_state: S,
-    pub guard: Option<Arc<dyn Fn(&S, &C) -> bool + Send + Sync>>,
-    pub action: Option<Arc<dyn Fn(&S, &C) -> DomainResult<()> + Send + Sync>>,
+    pub guard: Option<GuardFn<S, C>>,
+    pub action: Option<ActionFn<S, C>>,
 }
 
 /// State machine for aggregates
 pub struct StateMachine<S: State, C: Command> {
     initial_state: S,
     transitions: HashMap<(S, std::any::TypeId), Vec<Transition<S, C>>>,
-    state_entry_actions: HashMap<S, Box<dyn Fn(&S) -> DomainResult<()> + Send + Sync>>,
-    state_exit_actions: HashMap<S, Box<dyn Fn(&S) -> DomainResult<()> + Send + Sync>>,
+    state_entry_actions: HashMap<S, StateActionFn<S>>,
+    state_exit_actions: HashMap<S, StateActionFn<S>>,
     _phantom: std::marker::PhantomData<C>,
 }
 
@@ -106,8 +115,8 @@ impl<S: State + 'static, C: Command + 'static> StateMachine<S, C> {
 pub struct StateMachineBuilder<S: State, C: Command> {
     initial_state: S,
     transitions: Vec<Transition<S, C>>,
-    state_entry_actions: HashMap<S, Box<dyn Fn(&S) -> DomainResult<()> + Send + Sync>>,
-    state_exit_actions: HashMap<S, Box<dyn Fn(&S) -> DomainResult<()> + Send + Sync>>,
+    state_entry_actions: HashMap<S, StateActionFn<S>>,
+    state_exit_actions: HashMap<S, StateActionFn<S>>,
 }
 
 impl<S: State + 'static, C: Command + 'static> StateMachineBuilder<S, C> {

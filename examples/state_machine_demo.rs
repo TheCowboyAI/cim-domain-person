@@ -3,7 +3,7 @@
 use cim_domain_person::{
     aggregate::{
         Person, PersonId, PersonOnboarding, PersonState,
-        OnboardingCommand, OnboardingState, StateMachineAggregate
+        OnboardingCommand
     },
     commands::{PersonCommand, DeactivatePerson, ReactivatePerson},
     value_objects::PersonName,
@@ -33,7 +33,7 @@ fn demo_person_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let person_id = PersonId::new();
     let mut person = Person::new(
         person_id,
-        PersonName::new("John", Some("Q".to_string()), "Smith")?
+        PersonName::new("John".to_string(), "Smith".to_string())
     );
     
     info!("Initial state: {:?}", PersonState::from(person.lifecycle.clone()));
@@ -175,8 +175,7 @@ async fn demo_onboarding_workflow() -> Result<(), Box<dyn std::error::Error>> {
 
 // Example of creating custom workflows as aggregates
 mod custom_workflow {
-    use cim_domain_person::aggregate::{State, Command, StateMachine, StateMachineAggregate};
-    use serde::{Deserialize, Serialize};
+    use cim_domain_person::aggregate::{State, Command};
     
     #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     enum EmploymentState {
@@ -187,21 +186,7 @@ mod custom_workflow {
         Rejected,
     }
     
-    impl State for EmploymentState {
-        fn name(&self) -> &'static str {
-            match self {
-                EmploymentState::Applied => "Applied",
-                EmploymentState::Interviewing => "Interviewing",
-                EmploymentState::OfferExtended => "OfferExtended",
-                EmploymentState::Hired => "Hired",
-                EmploymentState::Rejected => "Rejected",
-            }
-        }
-        
-        fn is_terminal(&self) -> bool {
-            matches!(self, EmploymentState::Hired | EmploymentState::Rejected)
-        }
-    }
+    impl State for EmploymentState {}
     
     #[derive(Clone, Debug)]
     enum EmploymentCommand {
@@ -211,16 +196,7 @@ mod custom_workflow {
         RejectCandidate,
     }
     
-    impl Command for EmploymentCommand {
-        fn name(&self) -> &'static str {
-            match self {
-                EmploymentCommand::ScheduleInterview => "ScheduleInterview",
-                EmploymentCommand::ExtendOffer => "ExtendOffer",
-                EmploymentCommand::AcceptOffer => "AcceptOffer",
-                EmploymentCommand::RejectCandidate => "RejectCandidate",
-            }
-        }
-    }
+    impl Command for EmploymentCommand {}
     
     // This demonstrates how any multi-step process can be modeled
     // as an aggregate with a state machine

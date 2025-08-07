@@ -1,8 +1,9 @@
 //! Example of setting up enhanced NATS streaming for Person domain
 
 use cim_domain_person::infrastructure::{
-    StreamingConfig, StreamingClient, RetryHandler, SubscriptionManager,
-    retry::RetryPolicy, subscriptions::ProjectionHandler,
+    streaming::{StreamingConfig, StreamingClient, RetryPolicy},
+    retry::RetryHandler,
+    subscriptions::{SubscriptionManager, ProjectionHandler},
 };
 use std::sync::Arc;
 use tracing::info;
@@ -74,7 +75,7 @@ async fn publish_example() -> Result<(), Box<dyn std::error::Error>> {
     let person_id = PersonId::new();
     let event = PersonEventV2::Created {
         person_id,
-        name: PersonName::new("Jane", Some("A".to_string()), "Smith")?,
+        name: PersonName::new("Jane".to_string(), "Smith".to_string()),
         source: "example".to_string(),
         metadata: EventMetadata::new(),
     };

@@ -251,7 +251,7 @@ fn test_merge_duplicate_persons() {
                 "Should reference target person"
             );
             assert!(
-                matches!(event.reason, MergeReason::DuplicateIdentity),
+                matches!(event.merge_reason, MergeReason::DuplicateIdentity),
                 "Should record merge reason"
             );
         }

@@ -65,7 +65,7 @@ impl PersonCommandProcessor {
         let mut person = Person::empty();
         for envelope in events {
             // Convert PersonEventV2 to PersonEvent for backward compatibility
-            let event: PersonEvent = envelope.event.into();
+            let event: PersonEvent = envelope.event;
             person.apply_event(&event)?;
         }
         

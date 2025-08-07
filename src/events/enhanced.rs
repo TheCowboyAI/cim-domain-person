@@ -229,41 +229,6 @@ impl StreamingEventEnvelope {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_event_subject_generation() {
-        let person_id = PersonId::new();
-        let event = PersonEventV2::Created {
-            person_id,
-            name: PersonName::new("John".to_string(), "Doe".to_string()),
-            source: "test".to_string(),
-            metadata: EventMetadata::new(),
-        };
-        
-        let subject = event.subject();
-        assert!(subject.starts_with("person.events."));
-        assert!(subject.ends_with(".person.created"));
-    }
-    
-    #[test]
-    fn test_event_metadata_access() {
-        let metadata = EventMetadata::new();
-        let correlation_id = metadata.correlation_id;
-        
-        let event = PersonEventV2::Activated {
-            person_id: PersonId::new(),
-            reason: "Test activation".to_string(),
-            metadata,
-        };
-        
-        assert_eq!(event.metadata().correlation_id, correlation_id);
-        assert_eq!(event.event_type(), "person.activated");
-    }
-}
-
 // Conversion from V2 to V1 events for backward compatibility
 impl From<PersonEventV2> for PersonEvent {
     fn from(event: PersonEventV2) -> Self {
@@ -385,5 +350,40 @@ impl From<PersonEventV2> for PersonEvent {
                 })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_event_subject_generation() {
+        let person_id = PersonId::new();
+        let event = PersonEventV2::Created {
+            person_id,
+            name: PersonName::new("John".to_string(), "Doe".to_string()),
+            source: "test".to_string(),
+            metadata: EventMetadata::new(),
+        };
+        
+        let subject = event.subject();
+        assert!(subject.starts_with("person.events."));
+        assert!(subject.ends_with(".person.created"));
+    }
+    
+    #[test]
+    fn test_event_metadata_access() {
+        let metadata = EventMetadata::new();
+        let correlation_id = metadata.correlation_id;
+        
+        let event = PersonEventV2::Activated {
+            person_id: PersonId::new(),
+            reason: "Test activation".to_string(),
+            metadata,
+        };
+        
+        assert_eq!(event.metadata().correlation_id, correlation_id);
+        assert_eq!(event.event_type(), "person.activated");
     }
 }

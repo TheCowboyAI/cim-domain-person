@@ -259,6 +259,12 @@ pub struct EventMetadata {
     pub context: HashMap<String, serde_json::Value>,
 }
 
+impl Default for EventMetadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EventMetadata {
     /// Create new metadata with defaults
     pub fn new() -> Self {

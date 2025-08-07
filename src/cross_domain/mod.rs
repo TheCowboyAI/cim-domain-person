@@ -10,6 +10,16 @@
 //! without violating domain boundaries.
 
 pub mod person_organization;
+pub mod identity_integration;
+pub mod location_integration;
+pub mod git_integration;
+pub mod agent_integration;
+
+// Re-export commonly used types
+pub use identity_integration::{IdentityDomainEvent, IdentityEventHandler};
+pub use location_integration::{LocationDomainEvent, LocationEventHandler, AddressUsageType};
+pub use git_integration::{GitDomainEvent, GitEventHandler, LanguageStats};
+pub use agent_integration::{AgentDomainEvent, AgentEventHandler, AgentType, AssignmentType, AgentPermission};
 
 use cim_domain::DomainResult;
 use serde::{Deserialize, Serialize};

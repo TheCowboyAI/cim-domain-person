@@ -15,6 +15,12 @@ pub struct DataQualityPolicy {
     phone_regex: Regex,
 }
 
+impl Default for DataQualityPolicy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DataQualityPolicy {
     pub fn new() -> Self {
         Self {
@@ -146,7 +152,7 @@ impl Policy for DataQualityPolicy {
 fn standardize_phone_number(phone: &str) -> String {
     // Simple standardization - remove non-digits and ensure + prefix for international
     let digits_only: String = phone.chars()
-        .filter(|c| c.is_digit(10) || *c == '+')
+        .filter(|c| c.is_ascii_digit() || *c == '+')
         .collect();
     
     if digits_only.starts_with('+') {

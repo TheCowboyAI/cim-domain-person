@@ -7,8 +7,7 @@
 
 use chrono::NaiveDate;
 use cim_domain_person::{
-    aggregate::{ComponentType, Person, PersonId, PersonLifecycle},
-    events::PersonEvent,
+    aggregate::{ComponentType, Person, PersonId},
     value_objects::PersonName,
 };
 use uuid::Uuid;
@@ -143,16 +142,14 @@ fn test_multiple_concurrent_employments() {
 /// Test employment types
 #[test]
 fn test_employment_types() {
-    let types = vec![
-        OrgRelationType::Employee,
+    let types = [OrgRelationType::Employee,
         OrgRelationType::Contractor,
         OrgRelationType::Partner,
         OrgRelationType::BoardMember,
         OrgRelationType::Advisor,
         OrgRelationType::Vendor,
         OrgRelationType::Customer,
-        OrgRelationType::Alumni,
-    ];
+        OrgRelationType::Alumni];
 
     // All types should be distinct - verify we have 8 unique types
     assert_eq!(types.len(), 8);
@@ -339,13 +336,11 @@ fn test_person_relationship_types() {
         Friend,
     }
 
-    let types = vec![
-        PersonRelationshipType::Manager,
+    let types = [PersonRelationshipType::Manager,
         PersonRelationshipType::DirectReport,
         PersonRelationshipType::Colleague,
         PersonRelationshipType::Mentor,
-        PersonRelationshipType::Mentee,
-    ];
+        PersonRelationshipType::Mentee];
 
     // Verify bidirectional relationships
     assert!(types.contains(&PersonRelationshipType::Manager));

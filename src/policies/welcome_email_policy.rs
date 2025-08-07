@@ -11,6 +11,12 @@ use super::Policy;
 /// Policy that triggers welcome email for new persons
 pub struct WelcomeEmailPolicy;
 
+impl Default for WelcomeEmailPolicy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WelcomeEmailPolicy {
     pub fn new() -> Self {
         Self

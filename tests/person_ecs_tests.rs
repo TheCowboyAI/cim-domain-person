@@ -264,7 +264,7 @@ fn test_merge_persons() {
         PersonEvent::PersonMergedInto(e) => {
             assert_eq!(e.source_person_id, source_id);
             assert_eq!(e.merged_into_id, target_id);
-            match &e.reason {
+            match &e.merge_reason {
                 MergeReason::DuplicateIdentity => (),
                 _ => panic!("Expected DuplicateIdentity reason"),
             }

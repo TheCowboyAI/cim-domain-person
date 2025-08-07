@@ -11,6 +11,12 @@ use super::Policy;
 /// Policy that recommends skills based on person's activities
 pub struct SkillRecommendationPolicy;
 
+impl Default for SkillRecommendationPolicy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SkillRecommendationPolicy {
     pub fn new() -> Self {
         Self

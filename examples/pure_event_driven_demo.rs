@@ -93,7 +93,7 @@ async fn demo_event_flow(infra: &Infrastructure) -> Result<(), Box<dyn std::erro
     
     let create_cmd = PersonCommand::CreatePerson(CreatePerson {
         person_id,
-        name: PersonName::new("Event", Some("Flow".to_string()), "Demo")?,
+        name: PersonName::new("Event".to_string(), "Demo".to_string()),
         source: "demo".to_string(),
     });
     
@@ -133,7 +133,7 @@ async fn demo_state_machine_workflow() -> Result<(), Box<dyn std::error::Error>>
     let person_id = PersonId::new();
     let mut onboarding = OnboardingAggregate::new(
         person_id,
-        PersonName::new("State", Some("Machine".to_string()), "User")?,
+        PersonName::new("State".to_string(), "User".to_string()),
     );
     
     info!("Starting onboarding workflow...");
@@ -260,7 +260,7 @@ async fn demo_policy_engine(infra: &Infrastructure) -> Result<(), Box<dyn std::e
     
     let create_cmd = PersonCommand::CreatePerson(CreatePerson {
         person_id,
-        name: PersonName::new("Policy", None, "Demo")?,
+        name: PersonName::new("Policy".to_string(), "Demo".to_string()),
         source: "demo".to_string(),
     });
     
@@ -310,7 +310,7 @@ async fn demo_streaming_concurrency(infra: &Infrastructure) -> Result<(), Box<dy
         let future = async move {
             let cmd = PersonCommand::CreatePerson(CreatePerson {
                 person_id: PersonId::new(),
-                name: PersonName::new(&format!("User{}", i), None, "Concurrent")?,
+                name: PersonName::new(format!("User{}", i), "Concurrent".to_string()),
                 source: "concurrent-demo".to_string(),
             });
             processor.process(cmd).await
@@ -332,7 +332,7 @@ async fn demo_streaming_concurrency(infra: &Infrastructure) -> Result<(), Box<dy
     // Create person first
     let create_cmd = PersonCommand::CreatePerson(CreatePerson {
         person_id,
-        name: PersonName::new("Stream", None, "Demo")?,
+        name: PersonName::new("Stream".to_string(), "Demo".to_string()),
         source: "streaming-demo".to_string(),
     });
     infra.processor.process(create_cmd).await?;

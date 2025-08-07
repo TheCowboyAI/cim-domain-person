@@ -1,9 +1,9 @@
 //! Tests that expose missing functionality in the Person domain
 //! These tests SHOULD FAIL to highlight what needs to be implemented
 
-use chrono::{NaiveDate, Utc};
+use chrono::Utc;
 use cim_domain_person::{
-    aggregate::{ComponentType, Person, PersonId, PersonLifecycle},
+    aggregate::{ComponentType, Person, PersonId},
     commands::*,
     events::*,
     value_objects::PersonName,
@@ -57,7 +57,7 @@ fn test_register_component_missing_user_tracking() {
 /// Test that Person aggregate is missing lifecycle management methods
 #[test]
 fn test_person_missing_lifecycle_methods() {
-    let mut person = Person::new(
+    let person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
@@ -117,7 +117,7 @@ fn test_merge_reason_missing_variants() {
 /// Test that Person aggregate can't update its own lifecycle
 #[test]
 fn test_person_cant_update_own_lifecycle() {
-    let mut person = Person::new(
+    let person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
@@ -161,7 +161,7 @@ fn test_command_handlers_dont_update_state() {
 /// Test that there's no event replay mechanism
 #[test]
 fn test_missing_event_replay() {
-    let mut person = Person::empty();
+    let person = Person::empty();
 
     let events = vec![
         PersonEvent::PersonCreated(PersonCreated {
