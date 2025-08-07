@@ -9,7 +9,6 @@
 //! It also defines how Person domain interacts with other domains
 //! without violating domain boundaries.
 
-pub mod person_location;
 pub mod person_organization;
 
 use cim_domain::DomainResult;
@@ -18,15 +17,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use crate::events::PersonEvent;
 
-pub mod identity_integration;
-pub mod location_integration;
-pub mod git_integration;
-pub mod agent_integration;
-
-pub use identity_integration::*;
-pub use location_integration::*;
-pub use git_integration::*;
-pub use agent_integration::*;
 
 /// Cross-domain event that Person domain listens to
 #[derive(Debug, Clone, Serialize, Deserialize)]

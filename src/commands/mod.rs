@@ -46,6 +46,15 @@ pub enum PersonCommand {
     
     /// Merge two persons
     MergePersons(MergePersons),
+    
+    /// Archive a person
+    ArchivePerson(ArchivePerson),
+    
+    /// Add a component with data
+    AddComponent(AddComponent),
+    
+    /// Update component data
+    UpdateComponent(UpdateComponent),
 }
 
 // ===== Core Identity Commands =====
@@ -111,7 +120,7 @@ pub struct MergePersons {
     pub merge_reason: MergeReason,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MergeReason {
     DuplicateIdentity,
     DataQualityIssue,
@@ -119,8 +128,49 @@ pub enum MergeReason {
     PolicyDetermined,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchivePerson {
+    pub person_id: PersonId,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddComponent {
+    pub person_id: PersonId,
+    pub component_type: ComponentType,
+    pub data: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateComponent {
+    pub person_id: PersonId,
+    pub component_id: uuid::Uuid,
+    pub component_type: ComponentType,
+    pub updates: serde_json::Value,
+}
+
 // Include new component commands
 mod component_commands;
 pub use component_commands::*;
+
+impl PersonCommand {
+    /// Get the aggregate ID this command applies to
+    pub fn aggregate_id(&self) -> PersonId {
+        match self {
+            PersonCommand::CreatePerson(cmd) => cmd.person_id,
+            PersonCommand::UpdateName(cmd) => cmd.person_id,
+            PersonCommand::SetBirthDate(cmd) => cmd.person_id,
+            PersonCommand::RecordDeath(cmd) => cmd.person_id,
+            PersonCommand::RegisterComponent(cmd) => cmd.person_id,
+            PersonCommand::UnregisterComponent(cmd) => cmd.person_id,
+            PersonCommand::DeactivatePerson(cmd) => cmd.person_id,
+            PersonCommand::ReactivatePerson(cmd) => cmd.person_id,
+            PersonCommand::MergePersons(cmd) => cmd.source_person_id,
+            PersonCommand::ArchivePerson(cmd) => cmd.person_id,
+            PersonCommand::AddComponent(cmd) => cmd.person_id,
+            PersonCommand::UpdateComponent(cmd) => cmd.person_id,
+        }
+    }
+}
 
 

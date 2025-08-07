@@ -138,3 +138,23 @@ pub struct PersonMergedInto {
 // Include new component events
 mod component_events;
 pub use component_events::*;
+
+// Enhanced events with metadata
+mod enhanced;
+pub use enhanced::{PersonEventV2, StreamingEventEnvelope};
+
+// Event versioning support
+mod versioning;
+mod versioned_events;
+pub use versioning::{
+    VersionedEvent, EventVersionRegistry, EventMigration, 
+    FunctionMigration, VersionedEventEnvelope
+};
+pub use versioned_events::{
+    PersonCreatedV2, PersonNameUpdatedV2, PersonActivatedV2,
+    PersonSuspendedV2, PersonArchivedV2, ComponentAddedV2,
+    ComponentUpdatedV2, ComponentRemovedV2, create_event_registry
+};
+
+// Re-export EventMetadata from infrastructure
+pub use crate::infrastructure::EventMetadata;

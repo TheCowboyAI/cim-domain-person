@@ -24,3 +24,12 @@ pub trait EventSourced {
 // Export the ECS-oriented person aggregate
 pub mod person_ecs;
 pub use person_ecs::{Person, PersonId, PersonMarker, CoreIdentity, PersonLifecycle, ComponentType};
+
+// State machine framework
+pub mod state_machine;
+pub mod person_states;
+pub mod person_onboarding;
+
+pub use state_machine::{State, Command, StateMachine, StateMachineAggregate};
+pub use person_states::{PersonState, PersonStateCommand, create_person_state_machine};
+pub use person_onboarding::{PersonOnboarding, OnboardingState, OnboardingCommand};

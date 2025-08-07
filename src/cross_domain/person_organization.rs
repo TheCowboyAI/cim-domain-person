@@ -4,7 +4,6 @@
 //! without duplicating organization domain concepts.
 
 use crate::aggregate::PersonId;
-use cim_domain::EntityId;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
@@ -69,7 +68,7 @@ pub struct EmploymentMetadata {
     pub compensation: Option<CompensationInfo>,
     
     /// Work location (reference to location domain)
-    pub work_location_id: Option<EntityId<cim_domain_location::aggregate::LocationMarker>>,
+    pub work_location_id: Option<String>, // Location ID as string since cim_domain_location is not available
     
     /// Remote work arrangement
     pub remote_work: RemoteWorkArrangement,

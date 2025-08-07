@@ -1,0 +1,201 @@
+{
+  "project": "cim-domain-person",
+  "description": "Person domain module for the Composable Information Machine ecosystem",
+  "version": "0.3.0",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Initial Domain Model",
+      "status": "completed",
+      "startDate": "2023-10-01",
+      "endDate": "2023-11-15",
+      "description": "Basic person aggregate with CRUD operations",
+      "milestones": [
+        "Person aggregate implementation",
+        "Basic command handlers",
+        "Initial event sourcing",
+        "Repository pattern"
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Component System Integration",
+      "status": "completed",
+      "startDate": "2023-11-16",
+      "endDate": "2023-12-31",
+      "description": "Refactoring to Entity Component System architecture",
+      "milestones": [
+        "ECS pattern adoption",
+        "Component separation (Contact, Skills, Preferences)",
+        "Bevy framework integration",
+        "Component-based queries"
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Cross-Domain Integration",
+      "status": "completed",
+      "startDate": "2024-01-01",
+      "endDate": "2024-03-31",
+      "description": "Integration with other CIM domains",
+      "milestones": [
+        "Location domain integration",
+        "Organization domain integration",
+        "Identity domain integration",
+        "Git domain integration",
+        "Agent domain integration",
+        "Cross-domain event handling"
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "NATS Event-Driven Refactoring",
+      "status": "planned",
+      "startDate": "2024-04-01",
+      "endDate": "2024-05-03",
+      "description": "Simplified migration to pure event-driven architecture using existing aggregate patterns",
+      "milestones": [
+        "Enhanced NATS streaming integration",
+        "Async-first command processing",
+        "Formalize aggregates with state machines",
+        "Event versioning system",
+        "Policy engine development",
+        "Performance optimization"
+      ],
+      "subPhases": [
+        {
+          "id": "phase-4.1",
+          "name": "Foundation Enhancement",
+          "status": "not_started",
+          "duration": "1 week",
+          "tasks": [
+            "Enhance NATS streaming configuration",
+            "Add event metadata structure",
+            "Implement retry policies",
+            "Dead letter queue setup"
+          ]
+        },
+        {
+          "id": "phase-4.2",
+          "name": "Async-First Refactoring",
+          "status": "not_started",
+          "duration": "1 week",
+          "tasks": [
+            "Convert sync handlers to async",
+            "Update command bus for streaming",
+            "Async projection updates",
+            "Remove blocking calls"
+          ]
+        },
+        {
+          "id": "phase-4.3",
+          "name": "Aggregate State Machines",
+          "status": "not_started",
+          "duration": "1 week",
+          "tasks": [
+            "Formalize state machines in aggregates",
+            "Multi-step workflows as aggregates",
+            "Standard aggregate testing"
+          ]
+        },
+        {
+          "id": "phase-4.4",
+          "name": "Event Evolution",
+          "status": "not_started",
+          "duration": "1 week",
+          "tasks": [
+            "Event versioning system",
+            "Migration framework",
+            "Version-aware event store",
+            "Backward compatibility"
+          ]
+        },
+        {
+          "id": "phase-4.5",
+          "name": "Versioning & Policies",
+          "status": "not_started",
+          "duration": "1 week",
+          "tasks": [
+            "Event versioning",
+            "Simple policy handlers",
+            "OpenTelemetry integration",
+            "Basic monitoring"
+          ]
+        },
+        {
+          "id": "phase-4.6",
+          "name": "Testing & Migration",
+          "status": "not_started",
+          "duration": "1 week",
+          "tasks": [
+            "Data migration scripts",
+            "Performance tuning",
+            "Documentation updates",
+            "Final testing"
+          ]
+        }
+      ]
+    }
+  ],
+  "currentPhase": "phase-4",
+  "metrics": {
+    "totalPhases": 4,
+    "completedPhases": 3,
+    "progressPercentage": 75,
+    "estimatedCompletion": "2024-05-03"
+  },
+  "technicalDebt": [
+    {
+      "id": "td-1",
+      "description": "Some synchronous command handlers remain",
+      "priority": "high",
+      "targetPhase": "phase-4.2"
+    },
+    {
+      "id": "td-2",
+      "description": "Limited event streaming capabilities",
+      "priority": "medium",
+      "targetPhase": "phase-4.1"
+    },
+    {
+      "id": "td-3",
+      "description": "State machines not formalized in aggregates",
+      "priority": "medium",
+      "targetPhase": "phase-4.3"
+    },
+    {
+      "id": "td-4",
+      "description": "Missing event versioning support",
+      "priority": "medium",
+      "targetPhase": "phase-4.4"
+    }
+  ],
+  "dependencies": {
+    "internal": [
+      "cim-domain",
+      "cim-event-store"
+    ],
+    "external": [
+      "async-nats",
+      "bevy",
+      "serde",
+      "tokio"
+    ],
+    "planned": [
+      "nats-jetstream",
+      "ipld",
+      "state_machine_future"
+    ]
+  },
+  "lastUpdated": "2024-04-01T00:00:00Z",
+  "nextMilestone": {
+    "phase": "phase-4.1",
+    "description": "Enhance NATS streaming integration",
+    "targetDate": "2024-04-08"
+  },
+  "notes": {
+    "architecture": "Current codebase is ~80% event-driven, requiring evolutionary changes rather than revolutionary rewrite",
+    "approach": "Pragmatic migration focusing on high-value improvements",
+    "timeline": "Reduced from 16 weeks to 5 weeks using existing patterns"
+  }
+}

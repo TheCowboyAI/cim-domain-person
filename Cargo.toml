@@ -12,7 +12,6 @@ categories = ["data-structures"]
 [dependencies]
 # Domain dependencies
 cim-domain = { git = "https://github.com/TheCowboyAI/cim-domain.git", branch = "main" }
-cim-domain-location = { path = "../cim-domain-location" }
 
 # Core dependencies
 serde = { version = "1.0", features = ["derive"] }
@@ -29,6 +28,11 @@ async-trait = "0.1"
 tokio = { version = "1.32", features = ["full"] }
 async-nats = "0.35"
 futures = "0.3"
+tokio-stream = "0.1"
+
+# Additional dependencies for streaming
+rand = "0.8"
+tracing-subscriber = "0.3"
 regex = "1.10"
 
 [dev-dependencies]
@@ -37,3 +41,26 @@ tokio-test = "0.4"
 pretty_assertions = "1.4"
 rstest = "0.18"
 tracing-subscriber = "0.3"
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+
+[[bench]]
+name = "event_processing"
+harness = false
+
+[[bin]]
+name = "migrate_events"
+path = "scripts/migrate_events.rs"
+required-features = ["migration"]
+
+[[bin]]
+name = "verify_migration"
+path = "scripts/verify_migration.rs"
+required-features = ["migration"]
+
+[features]
+default = []
+migration = ["clap"]
+
+[dependencies.clap]
+version = "4.4"
+optional = true

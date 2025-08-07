@@ -21,6 +21,12 @@ pub use person_skills_projection::*;
 pub use person_network_projection::*;
 pub use person_timeline_projection::*;
 
+mod async_handlers;
+pub use async_handlers::{
+    AsyncProjectionHandler, SummaryProjectionHandler, SkillsProjectionHandler,
+    ProjectionStorage, register_projection_handlers
+};
+
 use crate::aggregate::PersonId;
 use crate::events::PersonEvent;
 

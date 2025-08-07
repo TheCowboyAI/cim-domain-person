@@ -5,6 +5,13 @@ use crate::projections::*;
 use std::sync::Arc;
 use chrono::{DateTime, Utc};
 
+mod async_query_processor;
+pub use async_query_processor::{
+    AsyncQueryProcessor, PersonQueryProcessor, QueryResult,
+    SearchCriteria, TimelineEvent, PersonUpdate,
+    consume_query_result
+};
+
 /// Query service that coordinates access to projections
 pub struct PersonQueryService {
     summary_projection: Arc<PersonSummaryProjection>,

@@ -244,17 +244,7 @@ impl PersonCommandHandler {
     
     /// Handle a single command
     async fn handle_command(&self, command: PersonCommand) -> DomainResult<CommandResponse> {
-        let aggregate_id = match &command {
-            PersonCommand::CreatePerson(cmd) => cmd.person_id,
-            PersonCommand::UpdateName(cmd) => cmd.person_id,
-            PersonCommand::SetBirthDate(cmd) => cmd.person_id,
-            PersonCommand::RecordDeath(cmd) => cmd.person_id,
-            PersonCommand::RegisterComponent(cmd) => cmd.person_id,
-            PersonCommand::UnregisterComponent(cmd) => cmd.person_id,
-            PersonCommand::DeactivatePerson(cmd) => cmd.person_id,
-            PersonCommand::ReactivatePerson(cmd) => cmd.person_id,
-            PersonCommand::MergePersons(cmd) => cmd.source_person_id,
-        };
+        let aggregate_id = command.aggregate_id();
         
         // Load or create aggregate
         let mut person = match self.repository.load(aggregate_id).await? {

@@ -23,6 +23,7 @@ pub mod cross_domain;
 pub mod components;
 pub mod infrastructure;
 pub mod services;
+pub mod policies;
 
 // Re-export main types
 pub use aggregate::{Person, PersonId, PersonMarker};
@@ -40,7 +41,6 @@ pub use components::{
 };
 
 // Re-export cross-domain types
-pub use cross_domain::person_location::{PersonAddress, PersonAddressType};
 pub use cross_domain::person_organization::{EmploymentRelationship, EmploymentRole};
 
 // Re-export services

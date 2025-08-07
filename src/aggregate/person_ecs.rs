@@ -12,6 +12,7 @@ use std::fmt;
 use crate::value_objects::PersonName;
 use crate::commands::*;
 use crate::events::*;
+use super::person_states::{PersonState, PersonStateCommand, create_person_state_machine};
 
 /// Marker type for Person entities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -221,14 +222,21 @@ impl Person {
 
     /// Handle commands - only core identity commands
     pub fn handle_command(&mut self, command: PersonCommand) -> Result<Vec<PersonEvent>, String> {
-        match self.lifecycle {
-            PersonLifecycle::MergedInto { .. } => {
-                return Err("Cannot modify a merged person".to_string());
+        // First check state machine if this command affects state
+        if let Some(state_command) = PersonStateCommand::from_person_command(&command) {
+            let current_state = PersonState::from(self.lifecycle.clone());
+            let state_machine = create_person_state_machine();
+            
+            // Validate state transition
+            match state_machine.validate_transition(&current_state, &state_command) {
+                Ok(new_state) => {
+                    // State transition is valid, proceed
+                    tracing::debug!("State transition: {:?} -> {:?}", current_state, new_state);
+                }
+                Err(e) => {
+                    return Err(format!("State transition failed: {}", e));
+                }
             }
-            PersonLifecycle::Deceased { .. } => {
-                return Err("Cannot modify a deceased person".to_string());
-            }
-            _ => {}
         }
 
         let events = match command {
@@ -243,6 +251,20 @@ impl Person {
             // Component registration commands
             PersonCommand::RegisterComponent(cmd) => self.handle_register_component(cmd),
             PersonCommand::UnregisterComponent(cmd) => self.handle_unregister_component(cmd),
+            
+            // New commands that don't have handlers yet
+            PersonCommand::ArchivePerson(_) => {
+                // TODO: Implement archive handler
+                Ok(vec![])
+            },
+            PersonCommand::AddComponent(_) => {
+                // Component addition is handled by component store, not aggregate
+                Ok(vec![])
+            },
+            PersonCommand::UpdateComponent(_) => {
+                // Component updates are handled by component store, not aggregate
+                Ok(vec![])
+            },
         }?;
         
         // Apply the events to update state
