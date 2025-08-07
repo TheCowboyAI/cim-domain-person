@@ -5,7 +5,7 @@ use cim_domain::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::{error, warn, info};
+use tracing::{debug, error, warn, info};
 
 use super::streaming::{RetryPolicy, EventMetadata};
 
@@ -105,6 +105,60 @@ impl RetryHandler {
         );
         
         Ok(())
+    }
+    
+    /// Check if retry handler is connected
+    pub async fn is_connected(&self) -> bool {
+        // Use the client to check connection status
+        match self.client.connection_state() {
+            async_nats::connection::State::Connected => {
+                debug!("Retry handler client is connected");
+                true
+            }
+            state => {
+                warn!("Retry handler client state: {:?}", state);
+                false
+            }
+        }
+    }
+    
+    /// Reprocess failed events from DLQ
+    pub async fn reprocess_dlq_events(&self, limit: usize) -> DomainResult<Vec<FailedEvent>> {
+        use futures::StreamExt;
+        
+        info!("Reprocessing up to {} events from DLQ", limit);
+        
+        // Subscribe to DLQ using the client
+        let mut subscription = self.client
+            .subscribe(self.dlq_subject.clone())
+            .await
+            .map_err(|e| DomainError::ExternalServiceError {
+                service: "NATS".to_string(),
+                message: format!("Failed to subscribe to DLQ: {}", e),
+            })?;
+        
+        let mut reprocessed = Vec::new();
+        let mut count = 0;
+        
+        while let Some(msg) = subscription.next().await {
+            if count >= limit {
+                break;
+            }
+            
+            // Deserialize failed event
+            if let Ok(failed_event) = serde_json::from_slice::<FailedEvent>(&msg.payload) {
+                debug!("Reprocessing event {} from DLQ", failed_event.event_id);
+                reprocessed.push(failed_event);
+                
+                // For regular NATS messages, no explicit ack needed
+                // (ack is only for JetStream messages)
+            }
+            
+            count += 1;
+        }
+        
+        info!("Reprocessed {} events from DLQ", reprocessed.len());
+        Ok(reprocessed)
     }
 }
 

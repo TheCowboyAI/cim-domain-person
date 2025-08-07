@@ -35,6 +35,16 @@ impl<S: State + 'static, C: Command + 'static> StateMachine<S, C> {
         StateMachineBuilder::new(initial_state)
     }
     
+    /// Get the initial state
+    pub fn initial_state(&self) -> &S {
+        &self.initial_state
+    }
+    
+    /// Reset to initial state (useful for testing or error recovery)
+    pub fn reset_state(&self) -> S {
+        self.initial_state.clone()
+    }
+    
     /// Validate a transition
     pub fn validate_transition(&self, current_state: &S, command: &C) -> DomainResult<S> {
         let command_type_id = std::any::TypeId::of::<C>();

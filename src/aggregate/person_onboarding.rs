@@ -7,6 +7,7 @@ use cim_domain::DomainResult;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
+use tracing::info;
 
 /// Onboarding workflow states
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -93,6 +94,23 @@ impl PersonOnboarding {
     pub fn handle_command(&mut self, command: OnboardingCommand) -> DomainResult<Vec<PersonEventV2>> {
         let new_state = self.handle_command_with_state_machine(command.clone())?;
         let mut events = Vec::new();
+        
+        // Log state transition for audit trail
+        info!("Onboarding state transitioned from {:?} to {:?}", self.state, new_state);
+        
+        // Update internal state to match state machine
+        self.state = new_state.clone();
+        
+        // Add state transition event
+        events.push(PersonEventV2::MetadataUpdated {
+            person_id: self.person_id,
+            metadata_type: "onboarding_state".to_string(),
+            metadata_value: serde_json::json!({
+                "state": format!("{:?}", new_state),
+                "timestamp": chrono::Utc::now()
+            }),
+            metadata: EventMetadata::new(),
+        });
         
         // Generate events based on command
         match command {

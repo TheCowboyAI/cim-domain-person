@@ -228,7 +228,16 @@ pub fn create_event_registry() -> EventVersionRegistry {
     registry
 }
 
+/// Migrate a batch of legacy events to the latest format
+#[allow(dead_code)] // Used by migration scripts
+pub fn migrate_legacy_events_batch(events: &[crate::events::PersonEvent]) -> Result<Vec<Value>, cim_domain::DomainError> {
+    events.iter()
+        .map(migrate_legacy_event)
+        .collect()
+}
+
 /// Helper to migrate old event format to new versioned format
+#[allow(dead_code)] // Used by migration scripts
 pub fn migrate_legacy_event(event: &crate::events::PersonEvent) -> Result<Value, cim_domain::DomainError> {
     let data = match event {
         crate::events::PersonEvent::PersonCreated(e) => {
@@ -279,6 +288,27 @@ pub fn migrate_legacy_event(event: &crate::events::PersonEvent) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::value_objects::PersonName;
+    
+    #[test]
+    fn test_legacy_event_migration() {
+        // Test migrating a single legacy event
+        let legacy_event = crate::events::PersonEvent::PersonCreated(crate::events::PersonCreated {
+            person_id: crate::aggregate::PersonId::new(),
+            name: PersonName::new("John".to_string(), "Doe".to_string()),
+            source: "test".to_string(),
+            created_at: chrono::Utc::now(),
+        });
+        
+        let migrated = migrate_legacy_event(&legacy_event).unwrap();
+        assert!(migrated.get("version").is_some());
+        assert_eq!(migrated["version"], "1.0");
+        
+        // Test batch migration
+        let events = vec![legacy_event];
+        let batch_result = migrate_legacy_events_batch(&events).unwrap();
+        assert_eq!(batch_result.len(), 1);
+    }
     
     #[test]
     fn test_person_created_migration() {

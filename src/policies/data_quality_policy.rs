@@ -52,7 +52,46 @@ impl Policy for DataQualityPolicy {
                     }
                     ComponentType::PhoneNumber => {
                         if let Some(phone) = component_data.get("phone_number").and_then(|v| v.as_str()) {
-                            // Standardize phone format
+                            // Validate phone format using regex
+                            if !self.phone_regex.is_match(phone) {
+                                // Try to clean and validate the phone number
+                                let cleaned = phone.chars()
+                                    .filter(|c| c.is_numeric() || *c == '+')
+                                    .collect::<String>();
+                                
+                                if self.phone_regex.is_match(&cleaned) {
+                                    // Phone can be cleaned and is valid
+                                    return Ok(vec![
+                                        PersonCommand::UpdateComponent(UpdateComponent {
+                                            person_id: *person_id,
+                                            component_id: uuid::Uuid::new_v4(), // Would need actual ID
+                                            component_type: ComponentType::PhoneNumber,
+                                            updates: serde_json::json!({
+                                                "phone_number": cleaned,
+                                                "standardized": true,
+                                                "original_format": phone,
+                                                "standardized_at": chrono::Utc::now(),
+                                            }),
+                                        })
+                                    ]);
+                                } else {
+                                    // Invalid phone format even after cleaning
+                                    return Ok(vec![
+                                        PersonCommand::UpdateComponent(UpdateComponent {
+                                            person_id: *person_id,
+                                            component_id: uuid::Uuid::new_v4(),
+                                            component_type: ComponentType::PhoneNumber,
+                                            updates: serde_json::json!({
+                                                "validation_status": "invalid",
+                                                "validation_error": "Invalid phone format",
+                                                "validated_at": chrono::Utc::now(),
+                                            }),
+                                        })
+                                    ]);
+                                }
+                            }
+                            
+                            // Standardize phone format even if valid
                             let standardized = standardize_phone_number(phone);
                             
                             if standardized != phone {

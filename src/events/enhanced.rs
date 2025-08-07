@@ -35,6 +35,11 @@ pub enum PersonEventV2 {
         reason: String,
         metadata: EventMetadata,
     },
+    Updated {
+        person_id: PersonId,
+        updates: serde_json::Value,
+        metadata: EventMetadata,
+    },
     
     // Identity events
     NameUpdated {
@@ -103,6 +108,12 @@ pub enum PersonEventV2 {
         identity_type: String,
         metadata: EventMetadata,
     },
+    MetadataUpdated {
+        person_id: PersonId,
+        metadata_type: String,
+        metadata_value: serde_json::Value,
+        metadata: EventMetadata,
+    },
 }
 
 impl PersonEventV2 {
@@ -113,6 +124,7 @@ impl PersonEventV2 {
             PersonEventV2::Activated { person_id, .. } |
             PersonEventV2::Suspended { person_id, .. } |
             PersonEventV2::Archived { person_id, .. } |
+            PersonEventV2::Updated { person_id, .. } |
             PersonEventV2::NameUpdated { person_id, .. } |
             PersonEventV2::BirthDateSet { person_id, .. } |
             PersonEventV2::DeathRecorded { person_id, .. } |
@@ -121,7 +133,8 @@ impl PersonEventV2 {
             PersonEventV2::ComponentRemoved { person_id, .. } |
             PersonEventV2::LocationAssigned { person_id, .. } |
             PersonEventV2::EmploymentAdded { person_id, .. } |
-            PersonEventV2::IdentityLinked { person_id, .. } => *person_id,
+            PersonEventV2::IdentityLinked { person_id, .. } |
+            PersonEventV2::MetadataUpdated { person_id, .. } => *person_id,
             PersonEventV2::PersonMerged { source_person_id, .. } => *source_person_id,
         }
     }
@@ -133,6 +146,7 @@ impl PersonEventV2 {
             PersonEventV2::Activated { metadata, .. } |
             PersonEventV2::Suspended { metadata, .. } |
             PersonEventV2::Archived { metadata, .. } |
+            PersonEventV2::Updated { metadata, .. } |
             PersonEventV2::NameUpdated { metadata, .. } |
             PersonEventV2::BirthDateSet { metadata, .. } |
             PersonEventV2::DeathRecorded { metadata, .. } |
@@ -142,7 +156,8 @@ impl PersonEventV2 {
             PersonEventV2::PersonMerged { metadata, .. } |
             PersonEventV2::LocationAssigned { metadata, .. } |
             PersonEventV2::EmploymentAdded { metadata, .. } |
-            PersonEventV2::IdentityLinked { metadata, .. } => metadata,
+            PersonEventV2::IdentityLinked { metadata, .. } |
+            PersonEventV2::MetadataUpdated { metadata, .. } => metadata,
         }
     }
     
@@ -153,6 +168,7 @@ impl PersonEventV2 {
             PersonEventV2::Activated { .. } => "person.activated",
             PersonEventV2::Suspended { .. } => "person.suspended",
             PersonEventV2::Archived { .. } => "person.archived",
+            PersonEventV2::Updated { .. } => "person.updated",
             PersonEventV2::NameUpdated { .. } => "person.name_updated",
             PersonEventV2::BirthDateSet { .. } => "person.birth_date_set",
             PersonEventV2::DeathRecorded { .. } => "person.death_recorded",
@@ -163,6 +179,7 @@ impl PersonEventV2 {
             PersonEventV2::LocationAssigned { .. } => "person.location_assigned",
             PersonEventV2::EmploymentAdded { .. } => "person.employment_added",
             PersonEventV2::IdentityLinked { .. } => "person.identity_linked",
+            PersonEventV2::MetadataUpdated { .. } => "person.metadata_updated",
         }
     }
     
@@ -340,9 +357,11 @@ impl From<PersonEventV2> for PersonEvent {
             }
             // Events that don't have V1 equivalents return a generic update
             PersonEventV2::Archived { person_id, .. } |
+            PersonEventV2::Updated { person_id, .. } |
             PersonEventV2::LocationAssigned { person_id, .. } |
             PersonEventV2::EmploymentAdded { person_id, .. } |
-            PersonEventV2::IdentityLinked { person_id, .. } => {
+            PersonEventV2::IdentityLinked { person_id, .. } |
+            PersonEventV2::MetadataUpdated { person_id, .. } => {
                 // For events without V1 equivalent, we could either:
                 // 1. Add new variants to PersonEvent
                 // 2. Map to a generic event

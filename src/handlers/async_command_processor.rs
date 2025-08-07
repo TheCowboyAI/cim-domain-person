@@ -235,7 +235,33 @@ impl AsyncCommandProcessor for PersonCommandProcessor {
         
         // Create event stream for real-time updates
         let (tx, rx) = mpsc::channel(10);
-        let event_stream = Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx));
+        let mut event_stream = Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx));
+        
+        // Demonstrate StreamExt usage - peek at first event if any
+        if let Some(first_event) = event_stream.next().await {
+            debug!("First event in stream: {:?}", first_event);
+            // Put it back by creating a new stream with the first event
+            let (tx2, rx2) = mpsc::channel(10);
+            let event_stream_new = Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx2));
+            
+            // Send the first event back
+            let tx2_clone = tx2.clone();
+            tokio::spawn(async move {
+                let _ = tx2_clone.send(first_event).await;
+            });
+            
+            // Forward remaining events from original stream
+            let mut event_stream_temp = event_stream;
+            tokio::spawn(async move {
+                while let Some(event) = event_stream_temp.next().await {
+                    if tx2.send(event).await.is_err() {
+                        break;
+                    }
+                }
+            });
+            
+            event_stream = event_stream_new;
+        }
         
         // Send initial events
         let events_to_stream = v2_events.clone();

@@ -19,7 +19,22 @@ pub trait Policy: Send + Sync {
     
     /// Check if this policy applies to the given event
     fn applies_to(&self, event: &PersonEventV2) -> bool {
-        true // By default, policies apply to all events
+        // By default, filter policies based on event type
+        match event {
+            // Most policies care about these core events
+            PersonEventV2::Created { .. } |
+            PersonEventV2::Updated { .. } |
+            PersonEventV2::NameUpdated { .. } |
+            PersonEventV2::ComponentAdded { .. } |
+            PersonEventV2::ComponentUpdated { .. } => true,
+            
+            // Skip archived/merged persons for most policies
+            PersonEventV2::Archived { .. } |
+            PersonEventV2::PersonMerged { .. } => false,
+            
+            // Other events depend on specific policy logic
+            _ => true,
+        }
     }
 }
 

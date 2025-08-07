@@ -104,17 +104,42 @@ impl SubscriptionManager {
                 Err(e) => {
                     error!("Failed to process message: {}", e);
                     
-                    // Check if should send to DLQ
-                    // In newer async-nats, delivery count might be accessed differently
+                    // Check if should send to DLQ based on max delivery attempts
                     let max_deliver = self.streaming_client.config().consumers
                         .get(consumer_name)
                         .map(|c| c.max_deliver as u64)
                         .unwrap_or(3);
                     
-                    // For now, always send to DLQ on error
-                    // TODO: Check delivery count when API is clarified
-                    if let Err(dlq_err) = self.send_to_dlq(&msg, consumer_name, e).await {
-                        error!("Failed to send to DLQ: {}", dlq_err);
+                    // Track delivery attempts using a thread-safe approach
+                    use std::sync::LazyLock;
+                    use std::sync::Mutex;
+                    
+                    static DELIVERY_ATTEMPTS: LazyLock<Mutex<std::collections::HashMap<String, u64>>> = 
+                        LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
+                    
+                    let msg_id = format!("{:?}", msg.subject);
+                    
+                    let attempts = {
+                        let mut attempts_map = DELIVERY_ATTEMPTS.lock().unwrap();
+                        let count = attempts_map.entry(msg_id.clone()).or_insert(0);
+                        *count += 1;
+                        *count
+                    };
+                    
+                    if attempts >= max_deliver {
+                        warn!("Message exceeded max delivery attempts ({}), sending to DLQ", max_deliver);
+                        if let Err(dlq_err) = self.send_to_dlq(&msg, consumer_name, e).await {
+                            error!("Failed to send to DLQ: {}", dlq_err);
+                        }
+                        // Clear the counter after sending to DLQ
+                        {
+                            let mut attempts_map = DELIVERY_ATTEMPTS.lock().unwrap();
+                            attempts_map.remove(&msg_id);
+                        }
+                    } else {
+                        warn!("Message delivery attempt {} of {}, will retry", attempts, max_deliver);
+                        // NAK the message for redelivery
+                        return Ok(());
                     }
                     
                     // Acknowledge to prevent redelivery
