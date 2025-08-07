@@ -316,19 +316,19 @@ mod tests {
         let breaker = CircuitBreaker::new(2, 2, Duration::from_secs(5));
         
         // First failure
-        let result: Result<(), &str> = breaker.execute(|| {
+        let result: Result<(), CircuitBreakerError<&str>> = breaker.execute(|| {
             Box::pin(async { Err("fail") })
         }).await;
         assert!(matches!(result, Err(CircuitBreakerError::OperationFailed(_))));
         
         // Second failure - should open circuit
-        let result: Result<(), &str> = breaker.execute(|| {
+        let result: Result<(), CircuitBreakerError<&str>> = breaker.execute(|| {
             Box::pin(async { Err("fail") })
         }).await;
         assert!(matches!(result, Err(CircuitBreakerError::OperationFailed(_))));
         
         // Third attempt - circuit should be open
-        let result: Result<(), &str> = breaker.execute(|| {
+        let result: Result<(), CircuitBreakerError<&str>> = breaker.execute(|| {
             Box::pin(async { Ok(()) })
         }).await;
         assert!(matches!(result, Err(CircuitBreakerError::Open)));

@@ -322,7 +322,5 @@ pub trait AsyncComponentCommandHandler: Send + Sync {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    
     // Mock implementations would go here
 }

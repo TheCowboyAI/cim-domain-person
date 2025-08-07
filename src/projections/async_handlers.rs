@@ -292,10 +292,6 @@ pub fn register_projection_handlers(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::value_objects::PersonName;
-    use crate::infrastructure::EventMetadata;
-    
     #[tokio::test]
     async fn test_summary_projection_handler() {
         // Mock storage implementation would go here

@@ -21,7 +21,7 @@ fn main() {
     let name = PersonName::new("Alice".to_string(), "Johnson".to_string());
     let mut person = Person::new(person_id, name);
     
-    println!("Created person: {person.core_identity.legal_name} ({person_id})");
+    println!("Created person: {} ({})", person.core_identity.legal_name, person_id);
     println!("Initial state: {:?}\n", person.lifecycle);
     
     // Register components
@@ -82,9 +82,9 @@ fn demo_component_data() {
     };
     
     println!("Email Component:");
-    println!("  Address: {email.email.address}");
-    println!("  Verified: {email.email.verified}");
-    println!("  Primary: {email.is_primary}");
+    println!("  Address: {}", email.email.address);
+    println!("  Verified: {}", email.email.verified);
+    println!("  Primary: {}", email.is_primary);
     println!("  Context: {:?}", email.context);
     
     // Phone component
@@ -101,10 +101,10 @@ fn demo_component_data() {
     };
     
     println!("\nPhone Component:");
-    println!("  Number: {phone.phone.number}");
+    println!("  Number: {}", phone.phone.number);
     println!("  Country Code: {:?}", phone.phone.country_code);
-    println!("  SMS Capable: {phone.phone.sms_capable}");
-    println!("  Primary: {phone.is_primary}");
+    println!("  SMS Capable: {}", phone.phone.sms_capable);
+    println!("  Primary: {}", phone.is_primary);
     println!("  Context: {:?}", phone.context);
     
     // Skill component
@@ -119,7 +119,7 @@ fn demo_component_data() {
     };
     
     println!("\nSkill Component:");
-    println!("  Name: {skill.name}");
+    println!("  Name: {}", skill.name);
     println!("  Category: {:?}", skill.category);
     println!("  Proficiency: {:?}", skill.proficiency);
     if let Some(years) = skill.years_experience {

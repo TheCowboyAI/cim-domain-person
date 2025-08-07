@@ -121,11 +121,17 @@ impl<S: State + 'static, C: Command + 'static> StateMachineBuilder<S, C> {
     }
     
     /// Add a simple transition without action
-    pub fn transition(mut self, from: S, _command: C, to: S) -> Self {
+    pub fn transition(mut self, from: S, command: C, to: S) -> Self {
+        // Create a guard that checks for the specific command
+        let guard = move |_state: &S, cmd: &C| -> bool {
+            // Use discriminant to compare enum variants
+            std::mem::discriminant(cmd) == std::mem::discriminant(&command)
+        };
+        
         self.transitions.push(Transition {
             from_state: from,
             to_state: to,
-            guard: None,
+            guard: Some(Arc::new(guard)),
             action: None,
         });
         self

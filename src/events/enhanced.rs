@@ -238,7 +238,7 @@ mod tests {
         let person_id = PersonId::new();
         let event = PersonEventV2::Created {
             person_id,
-            name: PersonName::new("John", None, "Doe").unwrap(),
+            name: PersonName::new("John".to_string(), "Doe".to_string()),
             source: "test".to_string(),
             metadata: EventMetadata::new(),
         };
