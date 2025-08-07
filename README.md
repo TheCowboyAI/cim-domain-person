@@ -165,9 +165,12 @@ cargo test --test streaming_tests
 
 ## Documentation
 
-- [Pure Event-Driven Architecture](docs/pure-event-driven-architecture.md)
-- [Migration Summary](docs/migration-summary.md)
-- [Week-by-week implementation](docs/)
+- [Architecture Guide](doc/architecture.md)
+- [API Reference](doc/api-reference.md)
+- [Component System](doc/components.md)
+- [Integration Guide](doc/integration.md)
+- [Development Guide](doc/development.md)
+- [User Stories](doc/user-stories.md)
 
 ## Dependencies
 
