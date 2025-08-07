@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Example direnv configuration for cim-domain-person
+# Copy this file to .envrc and adjust values for your environment
+# https://direnv.net/
+
+# Load Nix environment if flake.nix exists
+if [ -f flake.nix ]; then
+  use flake
+fi
+
+# Rust configuration
+export RUST_BACKTRACE=1
+export RUST_LOG=info,cim_domain_person=debug
+
+# Development environment
+export CARGO_TARGET_DIR=target
+export CARGO_INCREMENTAL=1
+
+# NATS Configuration
+export NATS_URL="nats://localhost:4222"
+export NATS_JETSTREAM_ENABLED=true
+
+# Database Configuration (for projections)
+export DATABASE_URL="postgresql://username:password@localhost:5432/person_domain"
+export DATABASE_MAX_CONNECTIONS=20
+
+# Redis Configuration (for caching)
+export REDIS_URL="redis://localhost:6379"
+
+# Application Configuration
+export APP_ENV=development
+export APP_LOG_LEVEL=debug
+export APP_PORT=8080
+
+# Testing Configuration
+export TEST_NATS_URL="nats://localhost:4222"
+export TEST_DATABASE_URL="postgresql://username:password@localhost:5432/person_domain_test"
+
+# Feature Flags
+export FEATURE_ASYNC_PROCESSING=true
+export FEATURE_EVENT_STREAMING=true
+export FEATURE_CIRCUIT_BREAKER=true
+
+# Performance Settings
+export TOKIO_WORKER_THREADS=4
+export ASYNC_STD_THREAD_COUNT=4
+
+# Optional: Add local bin to PATH
+PATH_add ./bin
+
+# Optional: Load additional local overrides if they exist
+if [ -f .envrc.local ]; then
+  source .envrc.local
+fi
+
+# Show environment loaded message
+echo "✓ direnv: cim-domain-person development environment loaded"
