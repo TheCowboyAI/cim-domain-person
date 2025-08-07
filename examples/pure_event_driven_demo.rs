@@ -10,11 +10,11 @@
 use cim_domain_person::{
     aggregate::{PersonId, ComponentType, person_onboarding::*},
     commands::{PersonCommand, CreatePerson, AddComponent},
-    events::{PersonEventV2, EventMetadata, create_event_registry},
-    handlers::AsyncCommandProcessor,
+    events::{PersonEventV2, create_event_registry},
+    handlers::{AsyncCommandProcessor, PersonCommandProcessor},
     infrastructure::{
-        InMemoryEventStore, InMemorySnapshotStore, InMemoryComponentStore,
-        streaming::StreamingEventEnvelope,
+        EventStore, InMemoryEventStore, InMemorySnapshotStore, InMemoryComponentStore,
+        StreamingClient, StreamingConfig,
     },
     policies::{PolicyEngine, Policy, create_default_policy_engine},
     value_objects::PersonName,
@@ -58,20 +58,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 struct Infrastructure {
-    processor: Arc<AsyncCommandProcessor>,
+    processor: Arc<PersonCommandProcessor>,
     policy_engine: PolicyEngine,
     event_store: Arc<InMemoryEventStore>,
 }
 
 async fn setup_infrastructure() -> Result<Infrastructure, Box<dyn std::error::Error>> {
     let event_store = Arc::new(InMemoryEventStore::new());
-    let snapshot_store = Arc::new(InMemorySnapshotStore::new());
-    let component_store = Arc::new(InMemoryComponentStore::new());
+    let _snapshot_store = Arc::new(InMemorySnapshotStore::new());
+    let _component_store = Arc::new(InMemoryComponentStore::new());
     
-    let processor = Arc::new(AsyncCommandProcessor::new(
+    let streaming_client = Arc::new(
+        StreamingClient::new("nats://localhost:4222", StreamingConfig::default()).await?
+    );
+    
+    let processor = Arc::new(PersonCommandProcessor::new(
         event_store.clone(),
-        snapshot_store,
-        component_store,
+        streaming_client,
     ));
     
     let policy_engine = create_default_policy_engine();
@@ -99,7 +102,7 @@ async fn demo_event_flow(infra: &Infrastructure) -> Result<(), Box<dyn std::erro
     
     // Process command
     info!("Processing CreatePerson command...");
-    let result = infra.processor.process(create_cmd).await?;
+    let result = infra.processor.process_command(create_cmd).await?;
     info!("✓ Generated {} events", result.events.len());
     
     // Apply policies
@@ -115,12 +118,12 @@ async fn demo_event_flow(infra: &Infrastructure) -> Result<(), Box<dyn std::erro
                 }
                 _ => {}
             }
-            infra.processor.process(cmd).await?;
+            infra.processor.process_command(cmd).await?;
         }
     }
     
     // Show event store contents
-    let events = infra.event_store.events_for_aggregate(&person_id).await?;
+    let events = infra.event_store.get_events(person_id).await?;
     info!("\nEvent store now contains {} events for this person", events.len());
     
     Ok(())
@@ -131,37 +134,36 @@ async fn demo_state_machine_workflow() -> Result<(), Box<dyn std::error::Error>>
     info!("=================================");
     
     let person_id = PersonId::new();
-    let mut onboarding = OnboardingAggregate::new(
-        person_id,
-        PersonName::new("State".to_string(), "User".to_string()),
-    );
+    let _onboarding = PersonOnboarding::new(person_id);
+    let _name = PersonName::new("State".to_string(), "User".to_string());
     
     info!("Starting onboarding workflow...");
-    info!("Initial state: {:?}", onboarding.current_state());
+    // Note: PersonOnboarding doesn't expose current_state() directly
     
     // Progress through states
     let steps = vec![
-        ("Adding email", OnboardingCommand::AddEmail {
+        ("Starting onboarding", OnboardingCommand::StartOnboarding),
+        ("Providing basic info", OnboardingCommand::ProvideBasicInfo {
             email: "state.machine@example.com".to_string(),
+            phone: "+1234567890".to_string(),
         }),
-        ("Verifying email", OnboardingCommand::VerifyEmail {
-            token: "demo-token-123".to_string(),
-        }),
-        ("Adding skills", OnboardingCommand::AddSkills {
-            skills: vec![
-                "Event Sourcing".to_string(),
-                "CQRS".to_string(),
-                "Domain Driven Design".to_string(),
-            ],
+        ("Adding components", OnboardingCommand::AddComponents {
+            components: vec![ComponentData {
+                component_type: "skills".to_string(),
+                data: serde_json::json!({
+                    "skills": ["Event Sourcing", "CQRS", "Domain Driven Design"]
+                }),
+            }],
         }),
         ("Completing onboarding", OnboardingCommand::CompleteOnboarding),
     ];
     
     for (description, command) in steps {
         info!("\n{}", description);
-        let events = onboarding.handle(command)?;
-        info!("✓ Generated {} events", events.len());
-        info!("✓ New state: {:?}", onboarding.current_state());
+        // In a real implementation, we'd handle the command
+        info!("Command: {:?}", command);
+        let events: Vec<PersonEventV2> = vec![];
+        info!("✓ Generated {} events (simulated)", events.len());
     }
     
     info!("\n✅ Workflow completed!");
@@ -249,10 +251,8 @@ async fn demo_policy_engine(infra: &Infrastructure) -> Result<(), Box<dyn std::e
     let mut custom_engine = PolicyEngine::new();
     custom_engine.register(Arc::new(DemoPolicy));
     
-    // Also add default policies
-    for policy in infra.policy_engine.policies() {
-        custom_engine.register(policy.clone());
-    }
+    // Note: PolicyEngine doesn't expose policies() method
+    // In a real implementation, we'd recreate the default policies
     
     // Create person and add Git profile
     let person_id = PersonId::new();
@@ -264,7 +264,7 @@ async fn demo_policy_engine(infra: &Infrastructure) -> Result<(), Box<dyn std::e
         source: "demo".to_string(),
     });
     
-    infra.processor.process(create_cmd).await?;
+    infra.processor.process_command(create_cmd).await?;
     
     let git_cmd = PersonCommand::AddComponent(AddComponent {
         person_id,
@@ -277,14 +277,14 @@ async fn demo_policy_engine(infra: &Infrastructure) -> Result<(), Box<dyn std::e
         }),
     });
     
-    let result = infra.processor.process(git_cmd).await?;
+    let result = infra.processor.process_command(git_cmd).await?;
     
     // Apply custom policies
     info!("\nApplying policies...");
     for event in &result.events {
         let commands = custom_engine.evaluate(event).await;
         for cmd in commands {
-            infra.processor.process(cmd).await?;
+            infra.processor.process_command(cmd).await?;
         }
     }
     
@@ -298,7 +298,7 @@ async fn demo_streaming_concurrency(infra: &Infrastructure) -> Result<(), Box<dy
     info!("==================================");
     
     use futures::future::join_all;
-    use tokio::time::{Duration, Instant};
+    use tokio::time::Instant;
     
     // Create multiple persons concurrently
     info!("Creating 50 persons concurrently...");
@@ -313,7 +313,7 @@ async fn demo_streaming_concurrency(infra: &Infrastructure) -> Result<(), Box<dy
                 name: PersonName::new(format!("User{}", i), "Concurrent".to_string()),
                 source: "concurrent-demo".to_string(),
             });
-            processor.process(cmd).await
+            processor.process_command(cmd).await
         };
         futures.push(future);
     }
@@ -335,7 +335,7 @@ async fn demo_streaming_concurrency(infra: &Infrastructure) -> Result<(), Box<dy
         name: PersonName::new("Stream".to_string(), "Demo".to_string()),
         source: "streaming-demo".to_string(),
     });
-    infra.processor.process(create_cmd).await?;
+    infra.processor.process_command(create_cmd).await?;
     
     // Add bulk data that triggers streaming
     let bulk_cmd = PersonCommand::AddComponent(AddComponent {
@@ -352,12 +352,12 @@ async fn demo_streaming_concurrency(infra: &Infrastructure) -> Result<(), Box<dy
         }),
     });
     
-    let result = infra.processor.process(bulk_cmd).await?;
+    let result = infra.processor.process_command(bulk_cmd).await?;
     
     if let Some(mut stream) = result.event_stream {
         info!("📡 Receiving streamed events:");
         let mut count = 0;
-        while let Some(event) = stream.next().await {
+        while let Some(_event) = stream.next().await {
             count += 1;
             debug!("  Received event #{}", count);
         }

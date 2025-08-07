@@ -2,7 +2,7 @@
 
 use cim_domain_person::{
     aggregate::PersonId,
-    commands::{PersonCommand, CreatePerson},
+    commands::PersonCommand,
     events::{
         PersonEventV2, EventMetadata, VersionedEventEnvelope,
         create_event_registry, PersonCreatedV2
@@ -98,7 +98,7 @@ async fn demo_policy_engine() -> Result<(), Box<dyn std::error::Error>> {
     // Test 2: Email component added
     let email_added = PersonEventV2::ComponentAdded {
         person_id,
-        component_type: cim_domain_person::aggregate::ComponentType::Email,
+        component_type: cim_domain_person::aggregate::ComponentType::EmailAddress,
         component_data: serde_json::json!({
             "email": "alice@example.com",
             "type": "primary",

@@ -178,6 +178,7 @@ mod custom_workflow {
     use cim_domain_person::aggregate::{State, Command};
     
     #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+    #[allow(dead_code)]
     enum EmploymentState {
         Applied,
         Interviewing,
@@ -189,6 +190,7 @@ mod custom_workflow {
     impl State for EmploymentState {}
     
     #[derive(Clone, Debug)]
+    #[allow(dead_code)]
     enum EmploymentCommand {
         ScheduleInterview,
         ExtendOffer,

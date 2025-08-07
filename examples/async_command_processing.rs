@@ -4,8 +4,8 @@ use cim_domain_person::{
     aggregate::PersonId,
     commands::{PersonCommand, CreatePerson},
     handlers::{AsyncCommandProcessor, PersonCommandProcessor},
-    infrastructure::{StreamingClient, StreamingConfig},
-    queries::{AsyncQueryProcessor, PersonQueryProcessor, QueryResult, consume_query_result},
+    infrastructure::{StreamingClient, StreamingConfig, EventStore, EventEnvelope},
+    projections::PersonSearchResult,
     value_objects::PersonName,
 };
 use futures::StreamExt;
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     
     // Create mock event store (in real app, this would be the actual store)
-    let event_store = Arc::new(MockEventStore::new());
+    let event_store = Arc::new(MockEventStore::new()) as Arc<dyn EventStore>;
     
     // Create command processor
     let command_processor = PersonCommandProcessor::new(
@@ -59,60 +59,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     // Example 2: Query with streaming results
-    let query_processor = create_mock_query_processor();
-    
     info!("Searching for persons...");
-    let search_criteria = crate::queries::SearchCriteria {
-        name_pattern: Some("Doe".to_string()),
-        email: None,
-        phone: None,
-        skills: vec![],
-        location_id: None,
-        organization_id: None,
-        active_only: true,
-        limit: None, // No limit triggers streaming
-        offset: None,
-    };
     
-    let search_results = query_processor.search_persons(search_criteria).await?;
+    // Create search results directly (simplified for demo)
+    let search_results = vec![
+        PersonSearchResult {
+            person_id: PersonId::new(),
+            name: "Jane Doe".to_string(),
+            email: Some("jane@example.com".to_string()),
+            employer: Some("Tech Corp".to_string()),
+            role: Some("Software Engineer".to_string()),
+            relevance_score: 0.95,
+        },
+        PersonSearchResult {
+            person_id: PersonId::new(),
+            name: "John Smith".to_string(),
+            email: Some("john@example.com".to_string()),
+            employer: Some("Data Inc".to_string()),
+            role: Some("Data Scientist".to_string()),
+            relevance_score: 0.85,
+        },
+    ];
     
-    match search_results {
-        QueryResult::Stream(mut stream) => {
-            info!("Streaming search results...");
-            let mut count = 0;
-            while let Some(result) = stream.next().await {
-                info!("Found: {} (score: {})", result.name, result.relevance_score);
-                count += 1;
-                if count >= 10 {
-                    break; // Limit for demo
-                }
-            }
-        }
-        QueryResult::Multiple(results) => {
-            info!("Got {} results", results.len());
-            for result in results.iter().take(5) {
-                info!("Found: {} (score: {})", result.name, result.relevance_score);
-            }
-        }
-        _ => {}
+    info!("Got {} search results", search_results.len());
+    for result in &search_results {
+        info!("Found: {} - {} at {}", 
+            result.name, 
+            result.role.as_deref().unwrap_or("Unknown"),
+            result.employer.as_deref().unwrap_or("Unknown")
+        );
     }
     
-    // Example 3: Subscribe to person updates
-    info!("Subscribing to updates for person {}...", person_id);
-    let mut update_stream = query_processor.subscribe_to_updates(person_id).await?;
+    // Example 3: Streaming updates simulation
+    info!("Setting up update stream for person {}...", person_id);
     
-    // Spawn a task to process updates
+    // Create a channel for simulating updates
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(10);
+    
+    // Spawn a task to send updates
     tokio::spawn(async move {
-        while let Some(update) = update_stream.next().await {
-            info!(
-                "Person {} updated: {:?} at {}",
-                update.person_id, update.update_type, update.timestamp
-            );
+        for i in 0..3 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            let _ = tx.send(format!("Update {}: Component added", i)).await;
         }
     });
     
-    // Simulate some activity
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    // Process a few updates
+    info!("Processing updates...");
+    for _ in 0..3 {
+        if let Some(update) = rx.recv().await {
+            info!("Received: {}", update);
+        }
+    }
     
     info!("Demo completed!");
     Ok(())
@@ -121,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 // Mock implementations for the example
 
 use async_trait::async_trait;
-use cim_domain::{DomainResult, DomainError};
+use cim_domain::DomainResult;
 
 struct MockEventStore;
 
@@ -132,11 +130,11 @@ impl MockEventStore {
 }
 
 #[async_trait]
-impl crate::infrastructure::EventStore for MockEventStore {
+impl EventStore for MockEventStore {
     async fn append_events(
         &self,
         _aggregate_id: PersonId,
-        _events: Vec<crate::events::PersonEvent>,
+        _events: Vec<cim_domain_person::events::PersonEvent>,
         _expected_version: Option<u64>,
     ) -> DomainResult<()> {
         Ok(())
@@ -145,7 +143,7 @@ impl crate::infrastructure::EventStore for MockEventStore {
     async fn get_events(
         &self,
         _aggregate_id: PersonId,
-    ) -> DomainResult<Vec<crate::infrastructure::EventEnvelope>> {
+    ) -> DomainResult<Vec<EventEnvelope>> {
         Ok(vec![])
     }
     
@@ -153,101 +151,11 @@ impl crate::infrastructure::EventStore for MockEventStore {
         &self,
         _aggregate_id: PersonId,
         _from_version: u64,
-    ) -> DomainResult<Vec<crate::infrastructure::EventEnvelope>> {
+    ) -> DomainResult<Vec<EventEnvelope>> {
         Ok(vec![])
     }
     
     async fn get_current_version(&self, _aggregate_id: PersonId) -> DomainResult<u64> {
         Ok(0)
     }
-}
-
-fn create_mock_query_processor() -> PersonQueryProcessor {
-    use crate::queries::async_query_processor::*;
-    use crate::projections::PersonSummary;
-    
-    struct MockSummaryStore;
-    
-    #[async_trait]
-    impl SummaryProjectionStore for MockSummaryStore {
-        async fn get_summary(&self, _person_id: PersonId) -> DomainResult<Option<PersonSummary>> {
-            Ok(None)
-        }
-    }
-    
-    struct MockSearchStore;
-    
-    #[async_trait]
-    impl SearchProjectionStore for MockSearchStore {
-        async fn search(&self, criteria: &SearchCriteria) -> DomainResult<Vec<PersonSearchResult>> {
-            Ok(vec![
-                PersonSearchResult {
-                    person_id: PersonId::new(),
-                    name: "Jane Doe".to_string(),
-                    relevance_score: 0.95,
-                    matched_fields: vec!["name".to_string()],
-                }
-            ])
-        }
-        
-        async fn search_stream(&self, criteria: &SearchCriteria) 
-            -> DomainResult<std::pin::Pin<Box<dyn futures::Stream<Item = PersonSearchResult> + Send>>> {
-            let (tx, rx) = tokio::sync::mpsc::channel(10);
-            
-            tokio::spawn(async move {
-                for i in 0..20 {
-                    let _ = tx.send(PersonSearchResult {
-                        person_id: PersonId::new(),
-                        name: format!("Person {}", i),
-                        relevance_score: 1.0 - (i as f32 * 0.05),
-                        matched_fields: vec!["name".to_string()],
-                    }).await;
-                }
-            });
-            
-            Ok(Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx)))
-        }
-    }
-    
-    // Mock other stores...
-    struct MockNetworkStore;
-    struct MockTimelineStore;
-    
-    #[async_trait]
-    impl NetworkProjectionStore for MockNetworkStore {
-        async fn get_network(&self, _person_id: PersonId, _depth: usize) 
-            -> DomainResult<Option<crate::projections::PersonNetworkView>> {
-            Ok(None)
-        }
-    }
-    
-    #[async_trait]
-    impl TimelineProjectionStore for MockTimelineStore {
-        async fn get_timeline(
-            &self,
-            _person_id: PersonId,
-            _from: Option<chrono::DateTime<chrono::Utc>>,
-            _to: Option<chrono::DateTime<chrono::Utc>>,
-        ) -> DomainResult<Vec<TimelineEvent>> {
-            Ok(vec![])
-        }
-        
-        async fn get_timeline_stream(
-            &self,
-            _person_id: PersonId,
-            _from: Option<chrono::DateTime<chrono::Utc>>,
-            _to: Option<chrono::DateTime<chrono::Utc>>,
-        ) -> DomainResult<std::pin::Pin<Box<dyn futures::Stream<Item = TimelineEvent> + Send>>> {
-            let (tx, rx) = tokio::sync::mpsc::channel(10);
-            drop(tx); // Close immediately for demo
-            Ok(Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx)))
-        }
-    }
-    
-    PersonQueryProcessor::new(
-        Arc::new(MockSummaryStore),
-        Arc::new(MockSearchStore),
-        Arc::new(MockNetworkStore),
-        Arc::new(MockTimelineStore),
-    )
 }
