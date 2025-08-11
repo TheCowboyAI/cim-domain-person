@@ -4,6 +4,7 @@
 //! - Person aggregate with minimal core identity
 //! - Components for composable capabilities
 //! - Cross-domain relationships
+//! - NATS-first messaging with comprehensive subject algebra
 //!
 //! ## ECS Architecture
 //!
@@ -24,6 +25,8 @@ pub mod components;
 pub mod infrastructure;
 pub mod services;
 pub mod policies;
+pub mod nats;
+pub mod workflow;
 
 // Re-export main types
 pub use aggregate::{Person, PersonId, PersonMarker};
@@ -52,6 +55,23 @@ pub use infrastructure::{
     PersonRepository, InMemorySnapshotStore,
     NatsEventStore, PersonCommandHandler,
     ComponentStore, InMemoryComponentStore,
+};
+
+// Re-export NATS types
+pub use nats::{
+    PersonSubject, PersonSubjectRoot, PersonAggregate, PersonEventType, PersonCommandType, 
+    PersonQueryType, PersonScope, PersonSubjectBuilder,
+    MessageIdentity, MessageId, CorrelationId, CausationId, PersonActor,
+    PersonMessageEnvelope, PersonTracingContext,
+};
+
+// Re-export workflow types
+pub use workflow::{
+    WorkflowId, WorkflowState, PersonWorkflowType, WorkflowDefinition, WorkflowInstance,
+    WorkflowManager, WorkflowEngine, DefaultWorkflowEngine, WorkflowEvent, WorkflowError,
+    create_person_onboarding_workflow, create_employment_lifecycle_workflow,
+    create_skills_certification_workflow, create_privacy_compliance_workflow,
+    get_predefined_workflows,
 };
 
 // Version information

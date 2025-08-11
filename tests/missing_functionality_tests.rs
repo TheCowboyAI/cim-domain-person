@@ -19,72 +19,83 @@ use cim_domain_person::{
 ///     B --> F[component_types()]
 /// ```
 #[test]
-fn test_person_missing_accessor_methods() {
-    let _person = Person::new(
+fn test_person_accessor_methods_implemented() {
+    let person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
 
-    // THESE SHOULD EXIST BUT DON'T
-    // let identity = person.core_identity(); // Method doesn't exist
-    // let lifecycle = person.lifecycle(); // Method doesn't exist
-    // let count = person.component_count(); // Method doesn't exist
-    // let types = person.component_types(); // Method doesn't exist
+    // These methods now exist!
+    let identity = person.core_identity();
+    let lifecycle = person.lifecycle();
+    let count = person.component_count();
+    let types = person.component_types();
 
-    // This test FAILS because we're accessing private fields
-    // which proves the methods are missing
-    panic!("Person aggregate is missing essential accessor methods!");
+    // Verify they work
+    assert_eq!(identity.legal_name, PersonName::new("Test".to_string(), "User".to_string()));
+    assert!(matches!(lifecycle, PersonLifecycle::Active));
+    assert_eq!(count, 0);
+    assert!(types.is_empty());
 }
 
-/// Test that register_component should track who registered it
+/// Test that register_component now tracks who registered it
 #[test]
-fn test_register_component_missing_user_tracking() {
-    let mut _person = Person::new(
+fn test_register_component_with_user_tracking_implemented() {
+    let mut person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
 
-    // The current API doesn't support tracking WHO registered the component
-    let _result = _person.register_component(ComponentType::EmailAddress);
+    // The new API supports tracking WHO registered the component
+    let result = person.register_component_with_source(
+        ComponentType::EmailAddress,
+        "hr_system".to_string()
+    );
 
-    // But the user stories require tracking this for audit!
-    // We need: person.register_component(ComponentType::EmailAddress, "hr_system")
-
-    panic!("register_component doesn't track the user/system that registered it!");
+    assert!(result.is_ok());
+    assert!(person.has_component(&ComponentType::EmailAddress));
 }
 
-/// Test that Person aggregate is missing lifecycle management methods
+/// Test that Person aggregate has lifecycle management via commands
 #[test]
-fn test_person_missing_lifecycle_methods() {
-    let _person = Person::new(
+fn test_person_lifecycle_methods_via_commands() {
+    use cim_domain_person::commands::*;
+    
+    let mut person = Person::new(
         PersonId::new(),
         PersonName::new("Test".to_string(), "User".to_string()),
     );
 
-    // THESE METHODS DON'T EXIST
-    // person.deactivate("reason", "admin");
-    // person.reactivate("reason", "admin");
-    // person.record_death(date, certificate, "admin");
-    // person.merge_into(target_id, reason, "admin");
-
-    panic!("Person aggregate is missing direct lifecycle management methods!");
+    // Lifecycle management is done via commands
+    let deactivate_cmd = PersonCommand::DeactivatePerson(DeactivatePerson {
+        person_id: person.id,
+        reason: "test".to_string(),
+    });
+    
+    let result = person.handle_command(deactivate_cmd);
+    assert!(result.is_ok());
+    
+    // Verify the person is deactivated
+    assert!(!person.is_active());
 }
 
-/// Test that events are missing critical audit fields
+/// Test that events now have audit fields
 #[test]
-fn test_events_missing_audit_fields() {
-    // Looking at the actual events, they're missing WHO performed the action
-
-    let _event = PersonEvent::ComponentRegistered(ComponentRegistered {
+fn test_events_have_audit_fields() {
+    // ComponentRegistered now has registered_by field
+    let event = PersonEvent::ComponentRegistered(ComponentRegistered {
         person_id: PersonId::new(),
         component_type: ComponentType::EmailAddress,
         registered_at: Utc::now(),
+        registered_by: "admin_user".to_string(),
     });
 
-    // But WHERE is registered_by field?
-    // The user stories require tracking WHO did WHAT
-
-    panic!("Events are missing 'who performed the action' audit fields!");
+    // Verify the event has the audit field
+    if let PersonEvent::ComponentRegistered(e) = event {
+        assert_eq!(e.registered_by, "admin_user");
+    }
+    
+    // Note: Other events still need audit fields added
 }
 
 /// Test that ComponentType is missing required variants

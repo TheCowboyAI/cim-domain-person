@@ -86,7 +86,7 @@ pub enum PersonLifecycle {
 
 /// Types of components that can be attached to a person
 /// This is for tracking and validation, not for storing the actual data
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ComponentType {
     // Contact components
     EmailAddress,
@@ -103,6 +103,7 @@ pub enum ComponentType {
     
     // Skill components
     Skill,
+    Skills,  // Plural variant for multiple skills
     Certification,
     Education,
     
@@ -120,10 +121,18 @@ pub enum ComponentType {
     CommunicationPreferences,
     PrivacyPreferences,
     GeneralPreferences,
+    Preferences,  // Generic preferences
+    
+    // Location component (distinct from Address)
+    Location,
+    
+    // Relationship components
+    Relationships,
     
     // Generic components
     Tag,
     CustomAttribute,
+    Custom(String),  // Custom component with name
 }
 
 impl fmt::Display for ComponentType {
@@ -137,6 +146,7 @@ impl fmt::Display for ComponentType {
             ComponentType::ProfessionalAffiliation => write!(f, "ProfessionalAffiliation"),
             ComponentType::Project => write!(f, "Project"),
             ComponentType::Skill => write!(f, "Skill"),
+            ComponentType::Skills => write!(f, "Skills"),
             ComponentType::Certification => write!(f, "Certification"),
             ComponentType::Education => write!(f, "Education"),
             ComponentType::SocialProfile => write!(f, "SocialProfile"),
@@ -148,8 +158,12 @@ impl fmt::Display for ComponentType {
             ComponentType::CommunicationPreferences => write!(f, "CommunicationPreferences"),
             ComponentType::PrivacyPreferences => write!(f, "PrivacyPreferences"),
             ComponentType::GeneralPreferences => write!(f, "GeneralPreferences"),
+            ComponentType::Preferences => write!(f, "Preferences"),
+            ComponentType::Location => write!(f, "Location"),
+            ComponentType::Relationships => write!(f, "Relationships"),
             ComponentType::Tag => write!(f, "Tag"),
             ComponentType::CustomAttribute => write!(f, "CustomAttribute"),
+            ComponentType::Custom(name) => write!(f, "Custom({})", name),
         }
     }
 }
@@ -194,22 +208,72 @@ impl Person {
     pub fn is_active(&self) -> bool {
         matches!(self.lifecycle, PersonLifecycle::Active)
     }
+    
+    /// Get core identity
+    pub fn core_identity(&self) -> &CoreIdentity {
+        &self.core_identity
+    }
+    
+    /// Get lifecycle state
+    pub fn lifecycle(&self) -> &PersonLifecycle {
+        &self.lifecycle
+    }
+    
+    /// Get count of registered components
+    pub fn component_count(&self) -> usize {
+        self.components.len()
+    }
+    
+    /// Get types of registered components
+    pub fn component_types(&self) -> Vec<ComponentType> {
+        self.components.iter().cloned().collect()
+    }
+    
+    /// Check if person can be modified (not deceased or merged)
+    pub fn can_be_modified(&self) -> Result<(), String> {
+        match &self.lifecycle {
+            PersonLifecycle::Deceased { .. } => {
+                Err("Cannot modify a deceased person".to_string())
+            }
+            PersonLifecycle::MergedInto { .. } => {
+                Err("Cannot modify a merged person".to_string())
+            }
+            _ => Ok(())
+        }
+    }
 
     /// Check if person has a specific component type attached
     pub fn has_component(&self, component_type: &ComponentType) -> bool {
         self.components.contains(component_type)
     }
 
-    /// Register that a component has been attached
+    /// Register that a component has been attached (legacy method for backward compatibility)
     pub fn register_component(&mut self, component_type: ComponentType) -> DomainResult<()> {
+        self.register_component_with_source(component_type, "unknown".to_string())
+    }
+    
+    /// Register that a component has been attached with tracking of who registered it
+    pub fn register_component_with_source(&mut self, component_type: ComponentType, registered_by: String) -> DomainResult<()> {
+        // Check if person can be modified
+        self.can_be_modified().map_err(|e| DomainError::ValidationError(e))?;
+        
         if !self.is_active() {
             return Err(DomainError::ValidationError(
                 "Cannot add components to inactive person".to_string()
             ));
         }
         
-        self.components.insert(component_type);
-        self.core_identity.updated_at = Utc::now();
+        // Use the command handler to ensure events are generated
+        let cmd = RegisterComponent {
+            person_id: self.id,
+            component_type,
+            registered_by,
+        };
+        
+        let command = PersonCommand::RegisterComponent(cmd);
+        self.handle_command(command)
+            .map_err(|e| DomainError::ValidationError(e))?;
+        
         Ok(())
     }
 
@@ -223,18 +287,21 @@ impl Person {
     /// Handle commands - only core identity commands
     pub fn handle_command(&mut self, command: PersonCommand) -> Result<Vec<PersonEvent>, String> {
         // First check state machine if this command affects state
-        if let Some(state_command) = PersonStateCommand::from_person_command(&command) {
-            let current_state = PersonState::from(self.lifecycle.clone());
-            let state_machine = create_person_state_machine();
-            
-            // Validate state transition
-            match state_machine.validate_transition(&current_state, &state_command) {
-                Ok(new_state) => {
-                    // State transition is valid, proceed
-                    tracing::debug!("State transition: {:?} -> {:?}", current_state, new_state);
-                }
-                Err(e) => {
-                    return Err(format!("State transition failed: {}", e));
+        // Skip state machine validation for reactivation since it has special handling
+        if !matches!(command, PersonCommand::ReactivatePerson(_)) {
+            if let Some(state_command) = PersonStateCommand::from_person_command(&command) {
+                let current_state = PersonState::from(self.lifecycle.clone());
+                let state_machine = create_person_state_machine();
+                
+                // Validate state transition
+                match state_machine.validate_transition(&current_state, &state_command) {
+                    Ok(new_state) => {
+                        // State transition is valid, proceed
+                        tracing::debug!("State transition: {:?} -> {:?}", current_state, new_state);
+                    }
+                    Err(e) => {
+                        return Err(format!("State transition failed: {}", e));
+                    }
                 }
             }
         }
@@ -288,6 +355,9 @@ impl Person {
     }
 
     fn handle_update_name(&mut self, cmd: UpdateName) -> Result<Vec<PersonEvent>, String> {
+        // Check if person can be modified (not deceased or merged)
+        self.can_be_modified()?;
+        
         if !self.is_active() {
             return Err("Cannot update inactive person".to_string());
         }
@@ -302,6 +372,9 @@ impl Person {
     }
 
     fn handle_set_birth_date(&mut self, cmd: SetBirthDate) -> Result<Vec<PersonEvent>, String> {
+        // Check if person can be modified
+        self.can_be_modified()?;
+        
         if self.core_identity.birth_date.is_some() {
             return Err("Birth date is immutable once set".to_string());
         }
@@ -326,6 +399,9 @@ impl Person {
     }
 
     fn handle_deactivate(&mut self, cmd: DeactivatePerson) -> Result<Vec<PersonEvent>, String> {
+        // Check if person can be modified
+        self.can_be_modified()?;
+        
         if !self.is_active() {
             return Err("Person is not active".to_string());
         }
@@ -351,6 +427,9 @@ impl Person {
     }
 
     fn handle_merge(&mut self, cmd: MergePersons) -> Result<Vec<PersonEvent>, String> {
+        // Check if person can be modified
+        self.can_be_modified()?;
+        
         if !self.is_active() {
             return Err("Cannot merge inactive person".to_string());
         }
@@ -366,6 +445,9 @@ impl Person {
     }
 
     fn handle_register_component(&mut self, cmd: RegisterComponent) -> Result<Vec<PersonEvent>, String> {
+        // Check if person can be modified
+        self.can_be_modified()?;
+        
         if self.components.contains(&cmd.component_type) {
             return Err("Component already registered".to_string());
         }
@@ -374,10 +456,14 @@ impl Person {
             person_id: self.id,
             component_type: cmd.component_type,
             registered_at: Utc::now(),
+            registered_by: cmd.registered_by,
         })])
     }
 
     fn handle_unregister_component(&mut self, cmd: UnregisterComponent) -> Result<Vec<PersonEvent>, String> {
+        // Check if person can be modified
+        self.can_be_modified()?;
+        
         if !self.components.contains(&cmd.component_type) {
             return Err("Component not registered".to_string());
         }
@@ -462,7 +548,7 @@ impl Person {
     }
     
     fn apply_component_registered(&mut self, event: &ComponentRegistered) -> DomainResult<()> {
-        self.components.insert(event.component_type);
+        self.components.insert(event.component_type.clone());
         self.core_identity.updated_at = event.registered_at;
         self.increment_version();
         Ok(())

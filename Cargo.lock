@@ -771,17 +771,20 @@ dependencies = [
 
 [[package]]
 name = "cim-domain-person"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "async-nats 0.35.1",
  "async-trait",
  "bevy_app",
  "bevy_ecs",
+ "blake3",
  "chrono",
+ "cid",
  "cim-domain",
  "clap",
  "criterion",
  "futures",
+ "multihash",
  "pretty_assertions",
  "rand",
  "regex",

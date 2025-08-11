@@ -162,7 +162,7 @@ impl PersonProjection for PersonTimelineProjection {
             
             PersonEvent::ComponentRegistered(e) => {
                 let mut metadata = HashMap::new();
-                metadata.insert("component_type".to_string(), serde_json::to_value(e.component_type).unwrap());
+                metadata.insert("component_type".to_string(), serde_json::to_value(&e.component_type).unwrap());
                 
                 let entry = TimelineEntry {
                     timestamp: e.registered_at,

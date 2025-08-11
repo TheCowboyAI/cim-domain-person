@@ -102,6 +102,12 @@ pub struct ComponentRegistered {
     pub person_id: PersonId,
     pub component_type: ComponentType,
     pub registered_at: DateTime<Utc>,
+    #[serde(default = "default_registered_by")]
+    pub registered_by: String,  // Track who/what system registered this
+}
+
+fn default_registered_by() -> String {
+    "unknown".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

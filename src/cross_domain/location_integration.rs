@@ -138,6 +138,7 @@ impl LocationEventHandler {
                     person_id,
                     component_type: ComponentType::Address,
                     registered_at: Utc::now(),
+                    registered_by: "location_integration".to_string(),
                 }
             );
             

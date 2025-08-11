@@ -269,6 +269,7 @@ impl From<PersonEventV2> for PersonEvent {
                     person_id,
                     component_type,
                     registered_at: chrono::Utc::now(),
+                    registered_by: "event_conversion".to_string(),
                 })
             }
             PersonEventV2::ComponentRemoved { person_id, component_type, .. } => {

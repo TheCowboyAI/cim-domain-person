@@ -91,6 +91,7 @@ pub struct RecordDeath {
 pub struct RegisterComponent {
     pub person_id: PersonId,
     pub component_type: ComponentType,
+    pub registered_by: String,  // Track who/what system registered this
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
