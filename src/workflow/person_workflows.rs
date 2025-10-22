@@ -3,8 +3,7 @@
 //! This module provides ready-to-use workflow definitions for typical
 //! person-related business processes like onboarding, verification, etc.
 
-use std::collections::HashMap;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{Utc, Duration};
 use serde_json;
 
 use super::definitions::*;

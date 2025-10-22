@@ -7,6 +7,12 @@ pub mod definitions;
 pub mod manager;
 pub mod person_workflows;
 
-pub use definitions::*;
-pub use manager::*;
+// Re-export specific items to avoid conflicts
+pub use definitions::{
+    WorkflowId, WorkflowState, PersonWorkflowType, WorkflowDefinition, WorkflowInstance,
+};
+pub use manager::{
+    WorkflowManager, WorkflowEngine, DefaultWorkflowEngine,
+    WorkflowError, WorkflowEvent, // Both are in manager
+};
 pub use person_workflows::*;

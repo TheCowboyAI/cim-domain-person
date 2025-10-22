@@ -288,14 +288,14 @@ impl ComponentStore for InMemoryComponentStore {
         
         let stored = StoredComponent {
             person_id,
-            component_type,
+            component_type: component_type.clone(),
             data: serde_json::to_value(&component)
                 .map_err(|e| DomainError::SerializationError(e.to_string()))?,
         };
-        
+
         // Store component
         self.components.write().await.insert(id, stored);
-        
+
         // Update person index
         self.person_index
             .write()
@@ -303,7 +303,7 @@ impl ComponentStore for InMemoryComponentStore {
             .entry(person_id)
             .or_insert_with(Vec::new)
             .push(id);
-        
+
         // Update type index
         self.type_index
             .write()

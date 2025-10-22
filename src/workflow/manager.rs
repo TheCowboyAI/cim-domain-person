@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use serde_json;
 
-use crate::nats::{PersonSubject, PersonEventType, PersonAggregate, MessageIdentity, PersonActor};
+use crate::nats::{PersonSubject, PersonEventType, PersonAggregate, PersonActor};
 use super::definitions::*;
 
 /// Errors that can occur during workflow management
@@ -243,7 +243,7 @@ impl DefaultWorkflowEngine {
         _context: &mut WorkflowContext,
     ) -> WorkflowResult<HashMap<String, serde_json::Value>> {
         // Subscribe to event pattern
-        let mut subscription = self.nats_client.subscribe(event_pattern).await
+        let mut subscription = self.nats_client.subscribe(event_pattern.to_string()).await
             .map_err(|e| WorkflowError::ExternalServiceError {
                 service: "NATS".to_string(),
                 message: format!("Failed to subscribe: {}", e),
