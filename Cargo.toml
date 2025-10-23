@@ -1,6 +1,6 @@
 [package]
 name = "cim-domain-person"
-version = "0.5.0"
+version = "0.7.8"
 edition = "2021"
 authors = ["The Cowboy AI"]
 description = "Person domain for CIM - NATS-first messaging with comprehensive identity management"
