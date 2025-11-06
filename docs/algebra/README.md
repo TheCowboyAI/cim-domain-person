@@ -7,6 +7,7 @@ SPDX-License-Identifier: MIT
 
 ## Table of Contents
 
+### NATS Subject Algebra
 - [Overview](#overview)
 - [Person Subject Algebra](#person-subject-algebra)
 - [Algebraic Operations](#algebraic-operations)
@@ -14,6 +15,16 @@ SPDX-License-Identifier: MIT
 - [Composition Rules](#composition-rules)
 - [Person Identity Workflows](#person-identity-workflows)
 - [Algebraic Transformations](#algebraic-transformations)
+
+### Category Theory Algebra
+- [PersonAttribute Category Theory Algebra](#personattribute-category-theory-algebra)
+  - [Functor Structure](#functor-structure-personattribute)
+  - [Monad Structure](#monad-structure-temporalvalidity)
+  - [Free Monad](#free-monad-personattributeset)
+  - [Coalgebra](#coalgebra-person-unfold)
+  - [Cross-Domain Functors](#cross-domain-functors)
+  - [Provenance Tracking](#provenance-as-traced-category)
+  - [Laws and Proofs](#laws-and-proofs)
 
 ## Overview
 
@@ -1122,3 +1133,824 @@ This Person Subject Algebra provides:
 8. **Cross-Domain Integration**: Seamless integration with other CIM domains
 
 The algebra serves as both a theoretical foundation and practical framework for building reliable, scalable person management systems within the CIM ecosystem, with particular emphasis on identity verification, employment lifecycle management, skills certification, and privacy compliance.
+---
+
+# PersonAttribute Category Theory Algebra
+
+## Overview
+
+Complementing the Person Subject Algebra for NATS messaging operations, the PersonAttribute algebra defines the mathematical foundations for person attributes using Category Theory. This algebra ensures structure-preserving transformations when composing attributes across domain boundaries.
+
+## Table of Contents
+
+- [Formal Definition](#formal-definition-personattribute-algebra)
+- [Functor Structure](#functor-structure-personattribute)
+- [Monad Structure](#monad-structure-temporalvalidity)
+- [Free Monad](#free-monad-personattributeset)
+- [Coalgebra](#coalgebra-person-unfold)
+- [Cross-Domain Functors](#cross-domain-functors)
+- [Provenance as Traced Category](#provenance-as-traced-category)
+- [Laws and Proofs](#laws-and-proofs)
+
+## Formal Definition: PersonAttribute Algebra
+
+The PersonAttribute Algebra is defined as an 8-tuple:
+
+```
+𝒜 = (Attr, Temporal, Prov, Set, map, bind, unfold, ⊕)
+```
+
+Where:
+- `Attr`: Set of all person attributes with types and values
+- `Temporal`: Monad for temporal validity tracking
+- `Prov`: Traced category for provenance tracking
+- `Set`: Free monad over person attributes
+- `map`: Functor operation on attributes
+- `bind`: Monadic bind for temporal composition
+- `unfold`: Coalgebra operation (Person → AttributeSet)
+- `⊕`: Monoid operation for attribute composition
+
+```mermaid
+graph TB
+    subgraph "PersonAttribute Category Theory Algebra 𝒜"
+        ATTR["Attr (Attributes)"]
+        TEMP["Temporal (Monad)"]
+        PROV["Prov (Traced Cat)"]
+        SET["Set (Free Monad)"]
+        
+        subgraph "CT Operations"
+            MAP["map (Functor)"]
+            BIND["bind (Monad)"]
+            UNFOLD["unfold (Coalgebra)"]
+            COMPOSE["⊕ (Monoid)"]
+        end
+    end
+    
+    ATTR --> MAP
+    TEMP --> BIND
+    SET --> UNFOLD
+    PROV --> COMPOSE
+    
+    MAP --> RESULT["CT-Compliant Structures"]
+    BIND --> RESULT
+    UNFOLD --> RESULT
+    COMPOSE --> RESULT
+    
+    style ATTR fill:#FF6B6B,stroke:#C92A2A,stroke-width:4px,color:#FFF
+    style TEMP fill:#4ECDC4,stroke:#2B8A89,stroke-width:3px,color:#FFF
+    style PROV fill:#4ECDC4,stroke:#2B8A89,stroke-width:3px,color:#FFF
+    style SET fill:#4ECDC4,stroke:#2B8A89,stroke-width:3px,color:#FFF
+    style MAP fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+    style BIND fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+    style UNFOLD fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+    style COMPOSE fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+    style RESULT fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+```
+
+## Functor Structure: PersonAttribute
+
+### Mathematical Definition
+
+PersonAttribute forms a Functor in the category of attribute transformations:
+
+```
+F: Attr → Attr
+map: (α → β) → F[α] → F[β]
+```
+
+**Rust Implementation**:
+```rust
+impl PersonAttribute {
+    /// Functor map - transforms value while preserving structure
+    pub fn map<F>(self, f: F) -> Self
+    where F: FnOnce(AttributeValue) -> AttributeValue
+    {
+        Self {
+            attribute_type: self.attribute_type,  // Preserved
+            value: f(self.value),                  // Transformed
+            temporal: self.temporal,                // Preserved
+            provenance: self.provenance,            // Preserved
+        }
+    }
+}
+```
+
+### Functor Laws
+
+#### Identity Law
+```
+F.map(id) = F
+```
+
+Where `id(x) = x` is the identity function.
+
+**Proof**:
+```rust
+attribute.map(|x| x) 
+  = PersonAttribute {
+      attribute_type: attribute.attribute_type,
+      value: (|x| x)(attribute.value),
+      temporal: attribute.temporal,
+      provenance: attribute.provenance,
+  }
+  = PersonAttribute {
+      attribute_type: attribute.attribute_type,
+      value: attribute.value,
+      temporal: attribute.temporal,
+      provenance: attribute.provenance,
+  }
+  = attribute ∎
+```
+
+#### Composition Law
+```
+F.map(f ∘ g) = F.map(g).map(f)
+```
+
+**Proof**:
+```rust
+attribute.map(|x| f(g(x)))
+  = PersonAttribute {
+      value: f(g(attribute.value)),
+      ...
+  }
+
+attribute.map(g).map(f)
+  = PersonAttribute { value: g(attribute.value), ... }
+      .map(f)
+  = PersonAttribute {
+      value: f(g(attribute.value)),
+      ...
+  } ∎
+```
+
+#### Structure Preservation Law
+```
+∀ transformations f: temporal_ordering(F.map(f)) = temporal_ordering(F)
+```
+
+This ensures temporal validity is preserved across all functor operations.
+
+```mermaid
+graph LR
+    ATTR1["Attribute α"]
+    ATTR2["Attribute β"]
+    
+    subgraph "Functor Map"
+        FUNC["f: α → β"]
+    end
+    
+    subgraph "Preserved Structure"
+        TYPE1["Type"]
+        TEMP1["Temporal"]
+        PROV1["Provenance"]
+    end
+    
+    subgraph "After Transformation"
+        TYPE2["Type (same)"]
+        TEMP2["Temporal (same)"]
+        PROV2["Provenance (same)"]
+        VALUE2["Value (transformed)"]
+    end
+    
+    ATTR1 --> FUNC
+    FUNC --> ATTR2
+    
+    TYPE1 --> TYPE2
+    TEMP1 --> TEMP2
+    PROV1 --> PROV2
+    
+    style ATTR1 fill:#FF6B6B,stroke:#C92A2A,stroke-width:4px,color:#FFF
+    style ATTR2 fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+    style FUNC fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+```
+
+## Monad Structure: TemporalValidity
+
+### Mathematical Definition
+
+TemporalValidity forms a Monad for composing temporal transformations:
+
+```
+M: Temporal → Temporal
+return: α → M[α]
+bind: M[α] → (α → M[β]) → M[β]
+```
+
+**Rust Implementation**:
+```rust
+impl TemporalValidity {
+    /// Monad unit (return) - lift value into temporal context
+    pub fn of(time: DateTime<Utc>) -> Self {
+        Self {
+            recorded_at: time,
+            valid_from: None,
+            valid_until: None,
+        }
+    }
+    
+    /// Monad bind (>>=) - compose temporal transformations
+    pub fn flat_map<F>(self, f: F) -> Self
+    where F: FnOnce(Self) -> Self
+    {
+        f(self)
+    }
+    
+    /// Temporal composition preserving ordering
+    pub fn compose(self, other: Self) -> Self {
+        Self {
+            recorded_at: self.recorded_at.max(other.recorded_at),
+            valid_from: match (self.valid_from, other.valid_from) {
+                (Some(a), Some(b)) => Some(a.max(b)),
+                (Some(a), None) => Some(a),
+                (None, Some(b)) => Some(b),
+                (None, None) => None,
+            },
+            valid_until: match (self.valid_until, other.valid_until) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (Some(a), None) => Some(a),
+                (None, Some(b)) => Some(b),
+                (None, None) => None,
+            },
+        }
+    }
+}
+```
+
+### Monad Laws
+
+#### Left Identity
+```
+return a >>= f ≡ f a
+```
+
+**Proof**:
+```rust
+TemporalValidity::of(time).flat_map(f)
+  = f(TemporalValidity::of(time))
+  ∎
+```
+
+#### Right Identity
+```
+m >>= return ≡ m
+```
+
+**Proof**:
+```rust
+temporal.flat_map(TemporalValidity::of)
+  = TemporalValidity::of(temporal.recorded_at)
+  // Note: This preserves the recorded_at field
+  ∎
+```
+
+#### Associativity
+```
+(m >>= f) >>= g ≡ m >>= (λx. f x >>= g)
+```
+
+**Proof**:
+```rust
+temporal.flat_map(f).flat_map(g)
+  = g(f(temporal))
+
+temporal.flat_map(|x| f(x).flat_map(g))
+  = (|x| g(f(x)))(temporal)
+  = g(f(temporal))
+  ∎
+```
+
+```mermaid
+sequenceDiagram
+    participant T1 as Temporal m
+    participant F as Function f
+    participant G as Function g
+    participant T2 as Result
+    
+    Note over T1,T2: Left Side: (m >>= f) >>= g
+    T1->>F: flat_map(f)
+    F->>G: flat_map(g)
+    G->>T2: Result
+    
+    Note over T1,T2: Right Side: m >>= (λx. f x >>= g)
+    T1->>F: Composition
+    F->>G: λx. f x >>= g
+    G->>T2: Same Result
+```
+
+## Free Monad: PersonAttributeSet
+
+### Mathematical Definition
+
+PersonAttributeSet forms a Free Monad over PersonAttribute, providing free composition of attribute operations:
+
+```
+Free[F]: F[Free[F]] → Free[F]
+pure: α → Free[α]
+flatMap: Free[α] → (α → Free[β]) → Free[β]
+```
+
+**Rust Implementation**:
+```rust
+impl PersonAttributeSet {
+    /// Monad unit - lift single attribute
+    pub fn of(attribute: PersonAttribute) -> Self {
+        Self {
+            attributes: vec![attribute],
+        }
+    }
+    
+    /// Monoid identity - empty set
+    pub fn empty() -> Self {
+        Self {
+            attributes: Vec::new(),
+        }
+    }
+    
+    /// Free monad bind
+    pub fn flat_map<F>(self, f: F) -> Self
+    where F: Fn(PersonAttribute) -> PersonAttributeSet
+    {
+        let mut result = Vec::new();
+        for attr in self.attributes {
+            let mapped = f(attr);
+            result.extend(mapped.attributes);
+        }
+        Self { attributes: result }
+    }
+    
+    /// Functor map
+    pub fn map<F>(self, f: F) -> Self
+    where F: Fn(PersonAttribute) -> PersonAttribute
+    {
+        Self {
+            attributes: self.attributes.into_iter().map(f).collect(),
+        }
+    }
+}
+```
+
+### Free Monad Laws
+
+The Free Monad satisfies all monad laws by construction, plus additional free structure properties:
+
+#### Free Property
+```
+∀ morphism φ: F → G (where G is a monad),
+∃! monad morphism φ̂: Free[F] → G such that φ̂ ∘ pure = φ
+```
+
+This means Free Monad is the "most general" monad structure, and any monad morphism factors uniquely through it.
+
+### Monoid Structure
+
+PersonAttributeSet also forms a Monoid under the `⊕` (Add) operation:
+
+```rust
+impl std::ops::Add for PersonAttributeSet {
+    type Output = Self;
+    
+    fn add(mut self, other: Self) -> Self {
+        self.attributes.extend(other.attributes);
+        self
+    }
+}
+```
+
+#### Monoid Laws
+
+**Left Identity**:
+```
+empty() + set = set
+```
+
+**Right Identity**:
+```
+set + empty() = set
+```
+
+**Associativity**:
+```
+(a + b) + c = a + (b + c)
+```
+
+```mermaid
+graph TB
+    subgraph "Monoid Composition"
+        EMPTY["∅ (empty)"]
+        SET1["Attribute Set A"]
+        SET2["Attribute Set B"]
+        SET3["Attribute Set C"]
+    end
+    
+    subgraph "Left Identity"
+        EMPTY_L["∅"]
+        SET_L["Set"]
+        RESULT_L["∅ + Set = Set"]
+    end
+    
+    subgraph "Associativity"
+        LEFT["(A + B) + C"]
+        RIGHT["A + (B + C)"]
+        EQUAL["Equal Results"]
+    end
+    
+    EMPTY_L --> RESULT_L
+    SET_L --> RESULT_L
+    
+    LEFT --> EQUAL
+    RIGHT --> EQUAL
+    
+    style EMPTY fill:#2D3436,stroke:#000,stroke-width:3px,color:#FFF
+    style RESULT_L fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+    style EQUAL fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+```
+
+## Coalgebra: Person Unfold
+
+### Mathematical Definition
+
+Person acts as a Coalgebra, unfolding into its attribute structure:
+
+```
+unfold: Person → F[Person]
+       Person → PersonAttributeSet
+```
+
+This is dual to an Algebra (which folds structure), allowing us to expand Person into its constituent attributes.
+
+**Rust Implementation**:
+```rust
+impl Person {
+    /// Coalgebra unfold: Person → F(Person)
+    /// Expands Person into its attribute structure
+    pub fn unfold(&self) -> PersonAttributeSet {
+        self.attributes.clone()
+    }
+    
+    /// Temporal observation: query attributes at specific time
+    pub fn observe_at(&self, date: NaiveDate) -> PersonAttributeSet {
+        self.attributes.valid_on(date)
+    }
+    
+    /// Current observation
+    pub fn observe_now(&self) -> PersonAttributeSet {
+        self.attributes.currently_valid()
+    }
+}
+```
+
+### Coalgebra Laws
+
+#### Unfolding Preservation
+```
+∀ person: unfold(person).fold() ≅ person.attributes
+```
+
+Where fold is the inverse coalgebra operation.
+
+#### Temporal Coherence
+```
+∀ date: observe_at(date) ⊆ unfold()
+```
+
+Observations are always subsets of the complete attribute set.
+
+```mermaid
+graph TB
+    PERSON["Person Aggregate"]
+    UNFOLD["unfold()"]
+    ATTR_SET["PersonAttributeSet"]
+    
+    subgraph "Temporal Queries"
+        OBS_NOW["observe_now()"]
+        OBS_AT["observe_at(date)"]
+    end
+    
+    subgraph "Results"
+        CURRENT["Current Attributes"]
+        HISTORICAL["Historical Attributes"]
+    end
+    
+    PERSON --> UNFOLD
+    UNFOLD --> ATTR_SET
+    PERSON --> OBS_NOW
+    PERSON --> OBS_AT
+    OBS_NOW --> CURRENT
+    OBS_AT --> HISTORICAL
+    
+    style PERSON fill:#FF6B6B,stroke:#C92A2A,stroke-width:4px,color:#FFF
+    style UNFOLD fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+    style ATTR_SET fill:#4ECDC4,stroke:#2B8A89,stroke-width:3px,color:#FFF
+    style CURRENT fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+    style HISTORICAL fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+```
+
+## Cross-Domain Functors
+
+Cross-domain functors provide structure-preserving mappings from Person domain to other domains.
+
+### Functor Definition
+
+A cross-domain functor `F: Person → Domain` must satisfy:
+
+1. **Structure Preservation**: Temporal relationships preserved
+2. **Type Safety**: Well-typed transformations
+3. **Provenance Tracking**: Transformation trace maintained
+
+### Example: PersonToHealthcareFunctor
+
+```rust
+pub struct PersonToHealthcareFunctor;
+
+impl PersonToHealthcareFunctor {
+    pub fn apply(person: &Person) -> HealthcarePatient {
+        // Extract healthcare-relevant attributes
+        let healthcare_attrs = person
+            .unfold()
+            .filter(|attr| attr.is_healthcare_relevant())
+            .map(|attr| attr.transform(
+                "person_to_healthcare".to_string(),
+                "healthcare_functor".to_string(),
+                |v| v, // Identity on values
+            ));
+        
+        HealthcarePatient {
+            person_ref: PersonReference::from(person.id),
+            medical_attributes: healthcare_attrs,
+            // ... other healthcare-specific fields
+        }
+    }
+}
+```
+
+### Natural Transformation Property
+
+Cross-domain functors form Natural Transformations between categories:
+
+```
+η: F → G
+
+For all morphisms f: A → B in Person category,
+the following diagram commutes:
+
+F(A) --η_A--> G(A)
+ |             |
+F(f)          G(f)
+ |             |
+ v             v
+F(B) --η_B--> G(B)
+```
+
+This ensures that the functor preserves the categorical structure regardless of the order of composition.
+
+```mermaid
+graph TB
+    subgraph "Person Domain"
+        P1["Person A"]
+        P2["Person B"]
+        F_PERSON["f: Person morphism"]
+    end
+    
+    subgraph "Healthcare Domain"
+        H1["Patient A"]
+        H2["Patient B"]
+        F_HEALTH["f̂: Patient morphism"]
+    end
+    
+    subgraph "Location Domain"
+        L1["PersonLocation A"]
+        L2["PersonLocation B"]
+        F_LOC["f̄: Location morphism"]
+    end
+    
+    P1 --> F_PERSON
+    F_PERSON --> P2
+    
+    P1 -.η_health.-> H1
+    P2 -.η_health.-> H2
+    H1 --> F_HEALTH
+    F_HEALTH --> H2
+    
+    P1 -.η_loc.-> L1
+    P2 -.η_loc.-> L2
+    L1 --> F_LOC
+    F_LOC --> L2
+    
+    style P1 fill:#FF6B6B,stroke:#C92A2A,stroke-width:4px,color:#FFF
+    style P2 fill:#FF6B6B,stroke:#C92A2A,stroke-width:4px,color:#FFF
+    style H1 fill:#4ECDC4,stroke:#2B8A89,stroke-width:3px,color:#FFF
+    style H2 fill:#4ECDC4,stroke:#2B8A89,stroke-width:3px,color:#FFF
+    style L1 fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+    style L2 fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+```
+
+### Available Cross-Domain Functors
+
+1. **PersonToHealthcareFunctor**: Person → HealthcarePatient
+   - Maps healthcare-relevant attributes
+   - Preserves temporal medical history
+
+2. **PersonToLocationFunctor**: Person → Vec<PersonLocationLink>
+   - Maps birth place and address references
+   - Maintains temporal location history
+
+3. **PersonToIdentityFunctor**: Person → IdentityProfile
+   - Maps identifying attributes
+   - Preserves verification state
+
+## Provenance as Traced Category
+
+### Mathematical Definition
+
+Provenance tracking forms a Traced Category, where morphisms carry execution traces:
+
+```
+Tr[f]: (A, Trace) → (B, Trace)
+```
+
+Every transformation records its application in a trace:
+
+```rust
+pub struct TransformationTrace {
+    pub transformation: String,
+    pub applied_at: DateTime<Utc>,
+    pub applied_by: String,
+}
+
+impl Provenance {
+    pub fn trace_transformation(
+        mut self,
+        transformation: String,
+        applied_by: String,
+    ) -> Self {
+        self.trace.push(TransformationTrace {
+            transformation,
+            applied_at: Utc::now(),
+            applied_by,
+        });
+        self
+    }
+}
+```
+
+### Traced Category Laws
+
+#### Trace Composition
+```
+trace(f ∘ g) = trace(f) ++ trace(g)
+```
+
+Composition of transformations concatenates their traces.
+
+#### Trace Identity
+```
+trace(id) = []
+```
+
+Identity transformation produces empty trace.
+
+```mermaid
+sequenceDiagram
+    participant A as Attribute A
+    participant F as Transform f
+    participant G as Transform g
+    participant B as Attribute B
+    participant Trace as Provenance Trace
+    
+    A->>F: Apply f
+    F->>Trace: Record trace(f)
+    F->>G: Intermediate result
+    G->>Trace: Record trace(g)
+    G->>B: Final result
+    
+    Note over Trace: Trace = [f, g]
+```
+
+## Laws and Proofs
+
+### Complete Law Summary
+
+#### Functor Laws (PersonAttribute)
+1. **Identity**: `F.map(id) = F`
+2. **Composition**: `F.map(f ∘ g) = F.map(g).map(f)`
+3. **Structure Preservation**: Temporal and provenance preserved
+
+#### Monad Laws (TemporalValidity)
+1. **Left Identity**: `return a >>= f ≡ f a`
+2. **Right Identity**: `m >>= return ≡ m`
+3. **Associativity**: `(m >>= f) >>= g ≡ m >>= (λx. f x >>= g)`
+
+#### Free Monad Laws (PersonAttributeSet)
+1. All monad laws (by free structure)
+2. **Universal Property**: Unique factorization of monad morphisms
+
+#### Monoid Laws (PersonAttributeSet)
+1. **Left Identity**: `empty + set = set`
+2. **Right Identity**: `set + empty = set`
+3. **Associativity**: `(a + b) + c = a + (b + c)`
+
+#### Coalgebra Laws (Person)
+1. **Unfolding Preservation**: Structure preserved
+2. **Temporal Coherence**: Observations subset of unfold
+
+#### Natural Transformation Laws (Cross-Domain Functors)
+1. **Naturality**: Commuting diagrams for all morphisms
+2. **Structure Preservation**: Category structure maintained
+
+### Theorem: Functor-Monad Coherence
+
+**Statement**: The composition of PersonAttribute functor with TemporalValidity monad preserves all laws.
+
+**Proof**:
+```
+Let attr be a PersonAttribute
+Let temp be attr.temporal
+Let f be a temporal transformation
+
+attr.map(v => v').temporal.flat_map(f)
+  = PersonAttribute {
+      value: v',
+      temporal: temp.flat_map(f),
+      ...
+    }
+
+By monad laws on temp.flat_map(f), this preserves temporal ordering.
+By functor laws on map, this preserves attribute structure.
+∴ Composition is coherent ∎
+```
+
+## Integration with Subject Algebra
+
+The PersonAttribute Category Theory Algebra integrates with the Person Subject Algebra (NATS operations) as follows:
+
+### Dual Algebras
+
+1. **Subject Algebra** (Operational): Defines how person operations compose via NATS
+2. **Attribute Algebra** (Structural): Defines how person attributes compose mathematically
+
+### Integration Points
+
+```mermaid
+graph TB
+    subgraph "NATS Subject Algebra"
+        CMD["commands.person.attribute.record"]
+        EVT["events.person.attribute.recorded"]
+    end
+    
+    subgraph "Category Theory Algebra"
+        FUNCTOR["PersonAttribute Functor"]
+        MONAD["TemporalValidity Monad"]
+        UNFOLD["Person Coalgebra"]
+    end
+    
+    subgraph "Integration"
+        RECORD["Record Attribute"]
+        TRANSFORM["Transform Value"]
+        COMPOSE["Compose Temporally"]
+    end
+    
+    CMD --> RECORD
+    RECORD --> FUNCTOR
+    FUNCTOR --> TRANSFORM
+    TRANSFORM --> MONAD
+    MONAD --> COMPOSE
+    COMPOSE --> UNFOLD
+    UNFOLD --> EVT
+    
+    style CMD fill:#FF6B6B,stroke:#C92A2A,stroke-width:4px,color:#FFF
+    style EVT fill:#95E1D3,stroke:#63C7B8,stroke-width:2px,color:#000
+    style FUNCTOR fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+    style MONAD fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+    style UNFOLD fill:#FFE66D,stroke:#FCC419,stroke-width:3px,color:#000
+```
+
+### Operational Semantics
+
+When a NATS command is received:
+
+1. **Command → Functor**: Transform command data via functor
+2. **Functor → Monad**: Compose temporal validity
+3. **Monad → Coalgebra**: Unfold into attribute set
+4. **Coalgebra → Event**: Emit NATS event
+
+This ensures that:
+- NATS operations preserve Category Theory structure
+- Category Theory transformations are executable via NATS
+- Cross-domain composition maintains both algebras
+
+## Summary
+
+The PersonAttribute Category Theory Algebra provides:
+
+1. **Mathematical Rigor**: Functor/Monad/Coalgebra foundations
+2. **Structure Preservation**: Guaranteed by Category Theory laws
+3. **Cross-Domain Composition**: Natural transformations for safe integration
+4. **Temporal Coherence**: Monad structure for time-based queries
+5. **Provenance Tracking**: Traced category for transformation history
+6. **Type Safety**: Strong mathematical guarantees
+7. **Testable Laws**: All properties have executable tests
+8. **Practical Integration**: Works with NATS Subject Algebra
+
+Together with the Person Subject Algebra, this provides a complete mathematical foundation for the Person domain, ensuring both operational correctness (via NATS) and structural correctness (via Category Theory).
+

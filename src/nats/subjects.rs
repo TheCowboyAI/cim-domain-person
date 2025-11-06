@@ -710,7 +710,7 @@ mod tests {
     #[test]
     fn test_wildcard_subjects() {
         let events_wildcard = PersonSubject::events_wildcard(PersonAggregate::Person);
-        assert_eq!(events_wildcard.to_string(), "events.person.person.*.">);
+        assert_eq!(events_wildcard.to_string(), "events.person.person.*.*");
         
         let commands_wildcard = PersonSubject::commands_wildcard(PersonAggregate::Skills);
         assert_eq!(commands_wildcard.to_string(), "commands.person.skills.*.*");

@@ -98,34 +98,9 @@ impl AsyncProjectionHandler for SummaryProjectionHandler {
                     debug!("Activated person {} in summary", person_id);
                 }
             }
-            
-            PersonEventV2::ComponentAdded { person_id, component_type, component_data, metadata } => {
-                if let Some(mut summary) = self.storage.get(person_id).await? {
-                    // Update based on component type
-                    match component_type.to_string().as_str() {
-                        "Email" => {
-                            if let Some(email) = component_data.get("email").and_then(|v| v.as_str()) {
-                                summary.primary_email = Some(email.to_string());
-                            }
-                        }
-                        "Phone" => {
-                            if let Some(phone) = component_data.get("phone_number").and_then(|v| v.as_str()) {
-                                summary.primary_phone = Some(phone.to_string());
-                            }
-                        }
-                        "Skill" => {
-                            summary.skills_count += 1;
-                        }
-                        _ => {}
-                    }
-                    
-                    summary.last_updated = metadata.timestamp;
-                    summary.component_count += 1;
-                    self.storage.save(person_id, &summary).await?;
-                    debug!("Added component {} to summary for person {}", component_type, person_id);
-                }
-            }
-            
+
+            // Component events removed - components belong in separate domains
+
             _ => {
                 // Other events don't affect summary
             }
@@ -191,38 +166,9 @@ impl AsyncProjectionHandler for SkillsProjectionHandler {
                 self.storage.save(person_id, &skills_view).await?;
                 info!("Created skills projection for person {}", person_id);
             }
-            
-            PersonEventV2::ComponentAdded { person_id, component_type, component_data, metadata } => {
-                if component_type.to_string() == "Skill" {
-                    if let Some(mut skills_view) = self.storage.get(person_id).await? {
-                        // Parse skill data and add to view
-                        if let Ok(skill) = serde_json::from_value::<SkillData>(component_data.clone()) {
-                            skills_view.skills.push(skill);
-                            skills_view.last_skill_update = Some(metadata.timestamp);
-                            
-                            // Recalculate aggregates
-                            skills_view.recalculate_aggregates();
-                            
-                            self.storage.save(person_id, &skills_view).await?;
-                            debug!("Added skill to projection for person {}", person_id);
-                        }
-                    }
-                }
-            }
-            
-            PersonEventV2::ComponentUpdated { person_id, component_type,  metadata, .. } => {
-                if component_type.to_string() == "Skill" {
-                    if let Some(mut skills_view) = self.storage.get(person_id).await? {
-                        // Update skill in view
-                        skills_view.last_skill_update = Some(metadata.timestamp);
-                        skills_view.recalculate_aggregates();
-                        
-                        self.storage.save(person_id, &skills_view).await?;
-                        debug!("Updated skill in projection for person {}", person_id);
-                    }
-                }
-            }
-            
+
+            // Component events removed - components belong in separate domains
+
             _ => {}
         }
         
@@ -253,6 +199,7 @@ pub struct SkillData {
 }
 
 impl PersonSkillsView {
+    #[allow(dead_code)] // Reserved for skills aggregation (belongs in Skills domain)
     fn recalculate_aggregates(&mut self) {
         // Update skill categories
         self.skill_categories.clear();

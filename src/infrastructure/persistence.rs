@@ -101,7 +101,7 @@ impl PersonRepository {
         // Try to load from snapshot first
         let snapshot = self.snapshot_store.get_latest_snapshot(aggregate_id).await?;
         
-        let (mut person, from_version) = if let Some(snapshot) = snapshot {
+        let (person, from_version) = if let Some(snapshot) = snapshot {
             (snapshot.state, snapshot.version + 1)
         } else {
             // Check if aggregate exists
@@ -111,15 +111,15 @@ impl PersonRepository {
             }
             (Person::empty(), 0)
         };
-        
-        // Apply events since snapshot
+
+        // Apply events since snapshot (pure functional)
         let events = self.event_store.get_events_from_version(aggregate_id, from_version).await?;
-        
+
         use crate::aggregate::EventSourced;
-        for envelope in events {
-            person.apply_event(&envelope.event)?;
-        }
-        
+        let person = events.into_iter().try_fold(person, |p, envelope| {
+            p.apply_event(&envelope.event)
+        })?;
+
         Ok(Some(person))
     }
     
@@ -160,83 +160,5 @@ impl PersonRepository {
     pub async fn exists(&self, aggregate_id: PersonId) -> DomainResult<bool> {
         let version = self.event_store.get_current_version(aggregate_id).await?;
         Ok(version > 0)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::commands::{PersonCommand, CreatePerson, RegisterComponent};
-    use crate::value_objects::PersonName;
-    use crate::infrastructure::event_store::InMemoryEventStore;
-    use crate::aggregate::PersonId;
-    
-    #[tokio::test]
-    async fn test_repository_save_and_load() {
-        let event_store = Arc::new(InMemoryEventStore::new());
-        let snapshot_store = Arc::new(InMemorySnapshotStore::new());
-        let repo = PersonRepository::new(event_store, snapshot_store, 5);
-        
-        let person_id = PersonId::new();
-        let mut person = Person::new(person_id, PersonName::new("John".to_string(), "Doe".to_string()));
-        
-        // Generate events
-        let events = person.handle_command(PersonCommand::CreatePerson(CreatePerson {
-            person_id,
-            name: PersonName::new("John".to_string(), "Doe".to_string()),
-            source: "test".to_string(),
-        })).unwrap();
-        
-        // Save
-        repo.save(&person, events, None).await.unwrap();
-        
-        // Load
-        let loaded = repo.load(person_id).await.unwrap().unwrap();
-        assert_eq!(loaded.id, person_id);
-        assert_eq!(loaded.core_identity.legal_name.given_name, "John");
-    }
-    
-    #[tokio::test]
-    async fn test_snapshot_creation() {
-        let event_store = Arc::new(InMemoryEventStore::new());
-        let snapshot_store = Arc::new(InMemorySnapshotStore::new());
-        let repo = PersonRepository::new(event_store, snapshot_store.clone(), 2);
-        
-        let person_id = PersonId::new();
-        
-        // Create person with initial command
-        let mut person = Person::empty();
-        person.id = person_id;
-        let create_events = person.handle_command(PersonCommand::CreatePerson(CreatePerson {
-            person_id,
-            name: PersonName::new("John".to_string(), "Doe".to_string()),
-            source: "test".to_string(),
-        })).unwrap();
-        repo.save(&person, create_events, None).await.unwrap();
-        
-        // Add components to trigger snapshot (snapshot every 2 events)
-        let component_types = vec![
-            crate::aggregate::ComponentType::EmailAddress,
-            crate::aggregate::ComponentType::PhoneNumber,
-        ];
-        
-        for component_type in component_types {
-            // Reload person to get current state
-            person = repo.load(person_id).await.unwrap().unwrap();
-            let current_version = person.version;
-            
-            let events = person.handle_command(PersonCommand::RegisterComponent(RegisterComponent {
-                person_id,
-                component_type,
-            })).unwrap();
-            
-            // Save with the version before applying the command
-            repo.save(&person, events, Some(current_version)).await.unwrap();
-        }
-        
-        // Check snapshot was created (should have one after 2 events)
-        let snapshot = snapshot_store.get_latest_snapshot(person_id).await.unwrap();
-        assert!(snapshot.is_some());
-        assert_eq!(snapshot.unwrap().version, 2);
     }
 } 

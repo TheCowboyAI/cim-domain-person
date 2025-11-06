@@ -1,368 +1,236 @@
-//! Demonstration of the pure event-driven architecture
-//! 
-//! This example shows how all the components work together in the new architecture:
-//! - Async command processing with streaming
-//! - State machine aggregates
-//! - Event versioning
-//! - Policy engine
-//! - NATS-style event flow
+//! Demonstration of pure event-driven architecture
+//!
+//! This example shows:
+//! - Commands triggering events
+//! - Pure functional event application with apply_event_pure
+//! - Event replay to reconstruct aggregate state
+//! - Event sourcing lifecycle
 
 use cim_domain_person::{
-    aggregate::{PersonId, ComponentType, person_onboarding::*},
-    commands::{PersonCommand, CreatePerson, AddComponent},
-    events::{PersonEventV2, create_event_registry},
-    handlers::{AsyncCommandProcessor, PersonCommandProcessor},
-    infrastructure::{
-        EventStore, InMemoryEventStore, InMemorySnapshotStore, InMemoryComponentStore,
-        StreamingClient, StreamingConfig,
+    aggregate::{Person, PersonId, PersonLifecycle},
+    commands::CreatePerson,
+    events::{PersonEvent, PersonCreated, AttributeRecorded, PersonDeactivated, PersonReactivated},
+    value_objects::{
+        PersonName, PersonAttribute, AttributeType, AttributeValue,
+        IdentifyingAttributeType, PhysicalAttributeType,
+        TemporalValidity, Provenance, AttributeSource, ConfidenceLevel,
     },
-    policies::{PolicyEngine, Policy, create_default_policy_engine},
-    value_objects::PersonName,
 };
-use std::sync::Arc;
-use futures::StreamExt;
-use tracing::{info, debug};
-use async_trait::async_trait;
+use chrono::{Utc, NaiveDate};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
-    
-    info!("🚀 Pure Event-Driven Architecture Demo");
-    info!("=====================================\n");
-    
-    // Setup infrastructure
-    let infrastructure = setup_infrastructure().await?;
-    
-    // Demo 1: Show the complete event flow
-    demo_event_flow(&infrastructure).await?;
-    
-    // Demo 2: State machine workflows
-    demo_state_machine_workflow().await?;
-    
-    // Demo 3: Event versioning in action
-    demo_event_versioning().await?;
-    
-    // Demo 4: Policy engine with custom policies
-    demo_policy_engine(&infrastructure).await?;
-    
-    // Demo 5: Streaming and concurrency
-    demo_streaming_concurrency(&infrastructure).await?;
-    
-    info!("\n✅ Demo completed successfully!");
-    
-    Ok(())
+fn main() {
+    println!("=== Pure Event-Driven Architecture Demo ===\n");
+
+    // Demo 1: Command → Event → State
+    demo_command_to_event();
+
+    // Demo 2: Pure event application
+    demo_pure_event_application();
+
+    // Demo 3: Event replay
+    demo_event_replay();
+
+    // Demo 4: Complete lifecycle with events
+    demo_lifecycle_events();
+
+    println!("\n✅ Demo completed successfully!");
 }
 
-struct Infrastructure {
-    processor: Arc<PersonCommandProcessor>,
-    policy_engine: PolicyEngine,
-    event_store: Arc<InMemoryEventStore>,
-}
+fn demo_command_to_event() {
+    println!("--- Demo 1: Command → Event → State ---");
 
-async fn setup_infrastructure() -> Result<Infrastructure, Box<dyn std::error::Error>> {
-    let event_store = Arc::new(InMemoryEventStore::new());
-    let _snapshot_store = Arc::new(InMemorySnapshotStore::new());
-    let _component_store = Arc::new(InMemoryComponentStore::new());
-    
-    let streaming_client = Arc::new(
-        StreamingClient::new("nats://localhost:4222", StreamingConfig::default()).await?
+    // Command: Create a person
+    let person_id = PersonId::new();
+    let command = CreatePerson {
+        person_id,
+        name: PersonName::new("Alice".to_string(), "Johnson".to_string()),
+        source: "demo".to_string(),
+    };
+
+    println!("Command: CreatePerson");
+    println!("  Person ID: {}", command.person_id);
+    println!("  Name: {} {}",
+        command.name.components.given_names[0],
+        command.name.components.family_names[0]
     );
-    
-    let processor = Arc::new(PersonCommandProcessor::new(
-        event_store.clone(),
-        streaming_client,
-    ));
-    
-    let policy_engine = create_default_policy_engine();
-    
-    Ok(Infrastructure {
-        processor,
-        policy_engine,
-        event_store,
-    })
+
+    // Generate event from command
+    let event = PersonEvent::PersonCreated(PersonCreated {
+        person_id: command.person_id,
+        name: command.name.clone(),
+        source: command.source.clone(),
+        created_at: Utc::now(),
+    });
+
+    println!("\nEvent: PersonCreated");
+    println!("  Person ID: {}", person_id);
+    println!("  Timestamp: {:?}", Utc::now());
+
+    // Apply event to create aggregate
+    let mut person = Person::empty();
+    person.id = person_id;
+    person = person.apply_event_pure(&event).expect("Failed to apply event");
+
+    println!("\nResulting State:");
+    println!("  ID: {}", person.id);
+    println!("  Name: {}", person.core_identity.legal_name);
+    println!("  Lifecycle: {:?}", person.lifecycle);
+    println!();
 }
 
-async fn demo_event_flow(infra: &Infrastructure) -> Result<(), Box<dyn std::error::Error>> {
-    info!("\n📊 Demo 1: Complete Event Flow");
-    info!("==============================");
-    
+fn demo_pure_event_application() {
+    println!("--- Demo 2: Pure Functional Event Application ---");
+
+    // Create initial person
+    let person_id = PersonId::new();
+    let name = PersonName::new("Bob".to_string(), "Smith".to_string());
+    let mut person = Person::new(person_id, name);
+
+    println!("Initial state: {} attributes", person.attributes.attributes.len());
+
+    // Event 1: Record birth date
+    let birth_date_event = PersonEvent::AttributeRecorded(AttributeRecorded {
+        person_id,
+        attribute: PersonAttribute::new(
+            AttributeType::Identifying(IdentifyingAttributeType::BirthDate),
+            AttributeValue::Date(NaiveDate::from_ymd_opt(1990, 5, 20).unwrap()),
+            TemporalValidity::of(Utc::now()),
+            Provenance::new(AttributeSource::DocumentVerified, ConfidenceLevel::Certain),
+        ),
+        recorded_at: Utc::now(),
+    });
+
+    // Apply event - PURE FUNCTION: doesn't mutate, returns new state
+    person = person.apply_event_pure(&birth_date_event)
+        .expect("Failed to apply birth date event");
+
+    println!("After recording birth date: {} attributes", person.attributes.attributes.len());
+
+    // Event 2: Record height
+    let height_event = PersonEvent::AttributeRecorded(AttributeRecorded {
+        person_id,
+        attribute: PersonAttribute::new(
+            AttributeType::Physical(PhysicalAttributeType::Height),
+            AttributeValue::Length(1.80),
+            TemporalValidity::of(Utc::now()),
+            Provenance::new(AttributeSource::SelfReported, ConfidenceLevel::Likely),
+        ),
+        recorded_at: Utc::now(),
+    });
+
+    person = person.apply_event_pure(&height_event)
+        .expect("Failed to apply height event");
+
+    println!("After recording height: {} attributes", person.attributes.attributes.len());
+    println!();
+}
+
+fn demo_event_replay() {
+    println!("--- Demo 3: Event Replay to Reconstruct State ---");
+
+    let person_id = PersonId::new();
+
+    // Create event stream (this would normally come from event store)
+    let event_stream = vec![
+        PersonEvent::PersonCreated(PersonCreated {
+            person_id,
+            name: PersonName::new("Charlie".to_string(), "Brown".to_string()),
+            source: "demo".to_string(),
+            created_at: Utc::now(),
+        }),
+        PersonEvent::AttributeRecorded(AttributeRecorded {
+            person_id,
+            attribute: PersonAttribute::new(
+                AttributeType::Identifying(IdentifyingAttributeType::BirthDate),
+                AttributeValue::Date(NaiveDate::from_ymd_opt(1985, 12, 1).unwrap()),
+                TemporalValidity::of(Utc::now()),
+                Provenance::new(AttributeSource::DocumentVerified, ConfidenceLevel::Certain),
+            ),
+            recorded_at: Utc::now(),
+        }),
+        PersonEvent::AttributeRecorded(AttributeRecorded {
+            person_id,
+            attribute: PersonAttribute::new(
+                AttributeType::Physical(PhysicalAttributeType::Weight),
+                AttributeValue::Mass(75.0),
+                TemporalValidity::of(Utc::now()),
+                Provenance::new(AttributeSource::Measured, ConfidenceLevel::Certain),
+            ),
+            recorded_at: Utc::now(),
+        }),
+    ];
+
+    println!("Event stream has {} events", event_stream.len());
+
+    // Replay events to reconstruct aggregate
+    let mut person = Person::empty();
+    person.id = person_id;
+
+    println!("\nReplaying events:");
+    for (i, event) in event_stream.iter().enumerate() {
+        println!("  Event {}: {:?}", i + 1, event_type_name(event));
+        person = person.apply_event_pure(event)
+            .expect("Failed to replay event");
+    }
+
+    println!("\nReconstructed state:");
+    println!("  ID: {}", person.id);
+    println!("  Name: {}", person.core_identity.legal_name);
+    println!("  Attributes: {}", person.attributes.attributes.len());
+    println!("  Lifecycle: {:?}", person.lifecycle);
+    println!();
+}
+
+fn demo_lifecycle_events() {
+    println!("--- Demo 4: Lifecycle Management via Events ---");
+
     // Create person
     let person_id = PersonId::new();
-    info!("Creating person with ID: {}", person_id);
-    
-    let create_cmd = PersonCommand::CreatePerson(CreatePerson {
+    let name = PersonName::new("Diana".to_string(), "Prince".to_string());
+    let mut person = Person::new(person_id, name);
+
+    println!("Initial lifecycle: {:?}", person.lifecycle);
+
+    // Event: Deactivate person
+    let deactivate_event = PersonEvent::PersonDeactivated(PersonDeactivated {
         person_id,
-        name: PersonName::new("Event".to_string(), "Demo".to_string()),
-        source: "demo".to_string(),
+        reason: "Compliance review required".to_string(),
+        deactivated_at: Utc::now(),
     });
-    
-    // Process command
-    info!("Processing CreatePerson command...");
-    let result = infra.processor.process_command(create_cmd).await?;
-    info!("✓ Generated {} events", result.events.len());
-    
-    // Apply policies
-    info!("\nApplying policies to events...");
-    for event in &result.events {
-        let commands = infra.policy_engine.evaluate(event).await;
-        info!("✓ Policy generated {} commands", commands.len());
-        
-        for cmd in commands {
-            match &cmd {
-                PersonCommand::AddComponent(add) => {
-                    info!("  → Adding component: {}", add.data["type"]);
-                }
-                _ => {}
-            }
-            infra.processor.process_command(cmd).await?;
-        }
-    }
-    
-    // Show event store contents
-    let events = infra.event_store.get_events(person_id).await?;
-    info!("\nEvent store now contains {} events for this person", events.len());
-    
-    Ok(())
+
+    person = person.apply_event_pure(&deactivate_event)
+        .expect("Failed to deactivate");
+
+    println!("After deactivation: {:?}", person.lifecycle);
+    println!("Is active: {}", person.is_active());
+
+    // Event: Reactivate person
+    let reactivate_event = PersonEvent::PersonReactivated(PersonReactivated {
+        person_id,
+        reason: "Review completed successfully".to_string(),
+        reactivated_at: Utc::now(),
+    });
+
+    person = person.apply_event_pure(&reactivate_event)
+        .expect("Failed to reactivate");
+
+    println!("After reactivation: {:?}", person.lifecycle);
+    println!("Is active: {}", person.is_active());
+    println!();
 }
 
-async fn demo_state_machine_workflow() -> Result<(), Box<dyn std::error::Error>> {
-    info!("\n🔄 Demo 2: State Machine Workflow");
-    info!("=================================");
-    
-    let person_id = PersonId::new();
-    let _onboarding = PersonOnboarding::new(person_id);
-    let _name = PersonName::new("State".to_string(), "User".to_string());
-    
-    info!("Starting onboarding workflow...");
-    // Note: PersonOnboarding doesn't expose current_state() directly
-    
-    // Progress through states
-    let steps = vec![
-        ("Starting onboarding", OnboardingCommand::StartOnboarding),
-        ("Providing basic info", OnboardingCommand::ProvideBasicInfo {
-            email: "state.machine@example.com".to_string(),
-            phone: "+1234567890".to_string(),
-        }),
-        ("Adding components", OnboardingCommand::AddComponents {
-            components: vec![ComponentData {
-                component_type: "skills".to_string(),
-                data: serde_json::json!({
-                    "skills": ["Event Sourcing", "CQRS", "Domain Driven Design"]
-                }),
-            }],
-        }),
-        ("Completing onboarding", OnboardingCommand::CompleteOnboarding),
-    ];
-    
-    for (description, command) in steps {
-        info!("\n{}", description);
-        // In a real implementation, we'd handle the command
-        info!("Command: {:?}", command);
-        let events: Vec<PersonEventV2> = vec![];
-        info!("✓ Generated {} events (simulated)", events.len());
+fn event_type_name(event: &PersonEvent) -> &'static str {
+    match event {
+        PersonEvent::PersonCreated(_) => "PersonCreated",
+        PersonEvent::PersonUpdated(_) => "PersonUpdated",
+        PersonEvent::NameUpdated(_) => "NameUpdated",
+        PersonEvent::BirthDateSet(_) => "BirthDateSet",
+        PersonEvent::DeathRecorded(_) => "DeathRecorded",
+        PersonEvent::AttributeRecorded(_) => "AttributeRecorded",
+        PersonEvent::AttributeUpdated(_) => "AttributeUpdated",
+        PersonEvent::AttributeInvalidated(_) => "AttributeInvalidated",
+        PersonEvent::PersonDeactivated(_) => "PersonDeactivated",
+        PersonEvent::PersonReactivated(_) => "PersonReactivated",
+        PersonEvent::PersonMergedInto(_) => "PersonMergedInto",
     }
-    
-    info!("\n✅ Workflow completed!");
-    
-    Ok(())
-}
-
-async fn demo_event_versioning() -> Result<(), Box<dyn std::error::Error>> {
-    info!("\n📦 Demo 3: Event Versioning");
-    info!("===========================");
-    
-    let registry = create_event_registry();
-    
-    // Simulate legacy V1 event
-    info!("Simulating legacy V1 event...");
-    let v1_event = serde_json::json!({
-        "version": "1.0",
-        "person_id": "123e4567-e89b-12d3-a456-426614174000",
-        "name": {
-            "first_name": "Legacy",
-            "middle_name": "Version",
-            "last_name": "One"
-        },
-        "source": "legacy_system",
-        "created_at": "2020-01-01T00:00:00Z"
-    });
-    
-    debug!("V1 structure: {}", serde_json::to_string_pretty(&v1_event)?);
-    
-    // Migrate to current version
-    info!("\nMigrating to current version (V2)...");
-    let migrated = registry.migrate_to_current("PersonCreated", v1_event)?;
-    
-    info!("✓ Migration successful!");
-    debug!("V2 structure: {}", serde_json::to_string_pretty(&migrated)?);
-    
-    // Show what changed
-    info!("\nKey changes:");
-    info!("  • Added 'metadata' object");
-    info!("  • Moved 'created_at' → 'metadata.timestamp'");
-    info!("  • Added correlation_id and other tracking fields");
-    
-    Ok(())
-}
-
-async fn demo_policy_engine(infra: &Infrastructure) -> Result<(), Box<dyn std::error::Error>> {
-    info!("\n🎯 Demo 4: Policy Engine");
-    info!("========================");
-    
-    // Create custom demo policy
-    struct DemoPolicy;
-    
-    #[async_trait]
-    impl Policy for DemoPolicy {
-        async fn evaluate(&self, event: &PersonEventV2) -> cim_domain::DomainResult<Vec<PersonCommand>> {
-            match event {
-                PersonEventV2::ComponentAdded { person_id, component_data, .. } => {
-                    if component_data["type"] == "git_profile" {
-                        info!("  🎯 DemoPolicy: Detected Git profile, adding badge!");
-                        Ok(vec![
-                            PersonCommand::AddComponent(AddComponent {
-                                person_id: *person_id,
-                                component_type: ComponentType::CustomAttribute,
-                                data: serde_json::json!({
-                                    "type": "badge",
-                                    "name": "Open Source Contributor",
-                                    "level": "gold"
-                                }),
-                            })
-                        ])
-                    } else {
-                        Ok(vec![])
-                    }
-                }
-                _ => Ok(vec![])
-            }
-        }
-        
-        fn name(&self) -> &str {
-            "DemoPolicy"
-        }
-    }
-    
-    // Create engine with custom policy
-    let mut custom_engine = PolicyEngine::new();
-    custom_engine.register(Arc::new(DemoPolicy));
-    
-    // Note: PolicyEngine doesn't expose policies() method
-    // In a real implementation, we'd recreate the default policies
-    
-    // Create person and add Git profile
-    let person_id = PersonId::new();
-    info!("Creating person and adding Git profile...");
-    
-    let create_cmd = PersonCommand::CreatePerson(CreatePerson {
-        person_id,
-        name: PersonName::new("Policy".to_string(), "Demo".to_string()),
-        source: "demo".to_string(),
-    });
-    
-    infra.processor.process_command(create_cmd).await?;
-    
-    let git_cmd = PersonCommand::AddComponent(AddComponent {
-        person_id,
-        component_type: ComponentType::CustomAttribute,
-        data: serde_json::json!({
-            "type": "git_profile",
-            "username": "rustacean",
-            "languages": ["rust", "go", "python"],
-            "repositories": 42
-        }),
-    });
-    
-    let result = infra.processor.process_command(git_cmd).await?;
-    
-    // Apply custom policies
-    info!("\nApplying policies...");
-    for event in &result.events {
-        let commands = custom_engine.evaluate(event).await;
-        for cmd in commands {
-            infra.processor.process_command(cmd).await?;
-        }
-    }
-    
-    info!("✓ Custom policy executed successfully!");
-    
-    Ok(())
-}
-
-async fn demo_streaming_concurrency(infra: &Infrastructure) -> Result<(), Box<dyn std::error::Error>> {
-    info!("\n⚡ Demo 5: Streaming & Concurrency");
-    info!("==================================");
-    
-    use futures::future::join_all;
-    use tokio::time::Instant;
-    
-    // Create multiple persons concurrently
-    info!("Creating 50 persons concurrently...");
-    let start = Instant::now();
-    
-    let mut futures = vec![];
-    for i in 0..50 {
-        let processor = infra.processor.clone();
-        let future = async move {
-            let cmd = PersonCommand::CreatePerson(CreatePerson {
-                person_id: PersonId::new(),
-                name: PersonName::new(format!("User{}", i), "Concurrent".to_string()),
-                source: "concurrent-demo".to_string(),
-            });
-            processor.process_command(cmd).await
-        };
-        futures.push(future);
-    }
-    
-    let results = join_all(futures).await;
-    let elapsed = start.elapsed();
-    
-    let successful = results.iter().filter(|r| r.is_ok()).count();
-    info!("✓ Created {} persons in {:?}", successful, elapsed);
-    info!("  Average: {:?} per person", elapsed / successful as u32);
-    
-    // Demonstrate streaming
-    info!("\nDemonstrating event streaming...");
-    let person_id = PersonId::new();
-    
-    // Create person first
-    let create_cmd = PersonCommand::CreatePerson(CreatePerson {
-        person_id,
-        name: PersonName::new("Stream".to_string(), "Demo".to_string()),
-        source: "streaming-demo".to_string(),
-    });
-    infra.processor.process_command(create_cmd).await?;
-    
-    // Add bulk data that triggers streaming
-    let bulk_cmd = PersonCommand::AddComponent(AddComponent {
-        person_id,
-        component_type: ComponentType::CustomAttribute,
-        data: serde_json::json!({
-            "type": "bulk_import",
-            "records": (0..20).map(|i| {
-                serde_json::json!({
-                    "id": i,
-                    "data": format!("Record {}", i)
-                })
-            }).collect::<Vec<_>>()
-        }),
-    });
-    
-    let result = infra.processor.process_command(bulk_cmd).await?;
-    
-    if let Some(mut stream) = result.event_stream {
-        info!("📡 Receiving streamed events:");
-        let mut count = 0;
-        while let Some(_event) = stream.next().await {
-            count += 1;
-            debug!("  Received event #{}", count);
-        }
-        info!("✓ Streamed {} additional events", count);
-    }
-    
-    Ok(())
 }

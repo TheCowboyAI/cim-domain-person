@@ -1,13 +1,18 @@
 //! Value objects for the Person domain
 //!
 //! This module contains value objects specific to the Person domain.
-//! In the ECS architecture, these are minimal types focused on person identity.
+//! Core identity includes comprehensive name representation.
 //!
 //! ## Architecture Notes
-//! 
+//!
 //! - Addresses are managed by the location domain
 //! - Employment is a relationship between Person and Organization domains
-//! - Skills, certifications, etc. are ECS components
+//! - Skills, certifications, etc. belong in separate domains
+//!
+//! ## Name Handling
+//!
+//! See `doc/person-names-design.md` for comprehensive design rationale.
+//! Names are culturally-aware structured value objects, not simple strings.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -16,70 +21,25 @@ use std::hash::Hash;
 pub mod relationships;
 pub use relationships::*;
 
-// ===== Core Identity =====
+// ===== Core Identity: Names =====
 
-/// Person's name components
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PersonName {
-    pub given_name: String,
-    pub family_name: String,
-    pub middle_names: Vec<String>,
-    pub preferred_name: Option<String>,
-    pub honorific: Option<String>,
-    pub suffix: Option<String>,
-}
+pub mod person_name;
+pub use person_name::{
+    PersonName, NameComponents, NamingConvention, NameDisplayPolicy,
+    PersonNameBuilder, PersonTitle, TitleType
+};
 
-impl PersonName {
-    /// Create a simple name
-    pub fn new(given_name: String, family_name: String) -> Self {
-        Self {
-            given_name,
-            family_name,
-            middle_names: Vec::new(),
-            preferred_name: None,
-            honorific: None,
-            suffix: None,
-        }
-    }
-    
-    /// Get display name (preferred or full)
-    pub fn display_name(&self) -> String {
-        if let Some(preferred) = &self.preferred_name {
-            preferred.clone()
-        } else {
-            format!("{} {}", self.given_name, self.family_name)
-        }
-    }
-    
-    /// Get full name with title and suffix
-    pub fn full_name(&self) -> String {
-        let mut parts = Vec::new();
-        
-        if let Some(honorific) = &self.honorific {
-            parts.push(honorific.clone());
-        }
-        
-        parts.push(self.given_name.clone());
-        
-        for middle in &self.middle_names {
-            parts.push(middle.clone());
-        }
-        
-        parts.push(self.family_name.clone());
-        
-        if let Some(suffix) = &self.suffix {
-            parts.push(suffix.clone());
-        }
-        
-        parts.join(" ")
-    }
-}
+// ===== Attributes: Extensible EAV System =====
 
-impl fmt::Display for PersonName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.display_name())
-    }
-}
+pub mod person_attribute;
+pub use person_attribute::{
+    PersonAttribute, PersonAttributeSet, AttributeType, AttributeValue,
+    IdentifyingAttributeType, PhysicalAttributeType, HealthcareAttributeType,
+    DemographicAttributeType, CustomAttributeType, TemporalValidity,
+    Provenance, AttributeSource, ConfidenceLevel, TransformationTrace,
+    DatePrecision, BloodTypeValue, EyeColorValue, HairColorValue,
+    BiologicalSexValue, HandednessValue,
+};
 
 // ===== Contact Information =====
 

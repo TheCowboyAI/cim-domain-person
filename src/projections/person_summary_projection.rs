@@ -3,7 +3,6 @@
 use super::{PersonProjection, PersonSummary};
 use crate::aggregate::PersonId;
 use crate::events::*;
-use crate::components::data::{ComponentData, ContactData, ProfessionalData};
 use cim_domain::DomainResult;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -104,62 +103,7 @@ impl PersonProjection for PersonSummaryProjection {
                     summary.last_updated = e.updated_at;
                 }
             }
-            
-            PersonEvent::ComponentRegistered(e) => {
-                let mut summaries = self.summaries.write().await;
-                if let Some(summary) = summaries.get_mut(&e.person_id) {
-                    summary.component_count += 1;
-                    summary.last_updated = e.registered_at;
-                }
-            }
-            
-            PersonEvent::ComponentUnregistered(e) => {
-                let mut summaries = self.summaries.write().await;
-                if let Some(summary) = summaries.get_mut(&e.person_id) {
-                    summary.component_count = summary.component_count.saturating_sub(1);
-                    summary.last_updated = e.unregistered_at;
-                }
-            }
-            
-            PersonEvent::ComponentDataUpdated(e) => {
-                let mut summaries = self.summaries.write().await;
-                if let Some(summary) = summaries.get_mut(&e.person_id) {
-                    // Update summary based on component data
-                    match &e.data {
-                        ComponentData::Contact(contact) => {
-                            match contact {
-                                ContactData::Email(email) if email.is_preferred_contact => {
-                                    summary.primary_email = Some(email.email.to_string());
-                                }
-                                ContactData::Phone(phone) if phone.can_receive_calls => {
-                                    summary.primary_phone = Some(phone.phone.to_string());
-                                }
-                                _ => {}
-                            }
-                        }
-                        ComponentData::Professional(prof) => {
-                            match prof {
-                                ProfessionalData::Employment(emp) if emp.is_current => {
-                                    summary.current_employer = Some(emp.company.clone());
-                                    summary.current_role = Some(emp.position.clone());
-                                }
-                                ProfessionalData::Skills(skills) => {
-                                    summary.skills_count = skills.skills.len();
-                                }
-                                _ => {}
-                            }
-                        }
-                        ComponentData::Location(loc) => {
-                            if let Some(addr) = &loc.address {
-                                summary.location = Some(format!("{}, {}", addr.city, addr.country));
-                            }
-                        }
-                        _ => {}
-                    }
-                    summary.last_updated = e.updated_at;
-                }
-            }
-            
+
             PersonEvent::PersonDeactivated(e) => {
                 let mut summaries = self.summaries.write().await;
                 summaries.remove(&e.person_id);

@@ -3,6 +3,7 @@
 use super::state_machine::{State, Command, StateMachine};
 use crate::aggregate::{PersonLifecycle, PersonId};
 use crate::commands::{PersonCommand, MergeReason};
+use cim_domain::formal_domain::AggregateState;
 use serde::{Deserialize, Serialize};
 
 /// States for the Person aggregate
@@ -23,6 +24,39 @@ pub enum PersonState {
 }
 
 impl State for PersonState {}
+
+// Implement AggregateState trait for formal Category Theory compliance
+impl AggregateState for PersonState {
+    fn all_states() -> Vec<Self> {
+        // Return representative states (can't enumerate all possible reasons/dates)
+        vec![
+            PersonState::Draft,
+            PersonState::Active,
+            PersonState::Suspended { reason: String::from("example") },
+            PersonState::Archived { reason: String::from("example") },
+            PersonState::Deceased {
+                date_of_death: chrono::NaiveDate::from_ymd_opt(2000, 1, 1).unwrap()
+            },
+            PersonState::MergedInto {
+                merged_into_id: PersonId::new(),
+                reason: MergeReason::DuplicateIdentity
+            },
+        ]
+    }
+
+    fn initial() -> Self {
+        PersonState::Draft
+    }
+
+    fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            PersonState::Deceased { .. }
+            | PersonState::MergedInto { .. }
+            | PersonState::Archived { .. }
+        )
+    }
+}
 
 impl From<PersonLifecycle> for PersonState {
     fn from(lifecycle: PersonLifecycle) -> Self {

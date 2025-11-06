@@ -1,15 +1,18 @@
-//! ECS-oriented Person aggregate
-//! 
-//! In ECS architecture, entities are just IDs with components attached.
-//! The Person aggregate only maintains core identity and invariants.
+//! Person aggregate - Pure functional domain model
+//!
+//! The Person aggregate maintains core identity (name, birth/death dates)
+//! and lifecycle state. This is a pure functional implementation following
+//! Category Theory and FRP principles with no framework dependencies.
 
 use cim_domain::{AggregateRoot, DomainError, DomainResult, EntityId};
+use cim_domain::formal_domain::{
+    MealyStateMachine, Aggregate, FormalDomainEntity,
+    DomainConcept
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use chrono::{DateTime, Utc};
-use std::fmt;
 
-use crate::value_objects::PersonName;
+use crate::value_objects::{PersonName, PersonAttributeSet, PersonAttribute, AttributeType};
 use crate::commands::*;
 use crate::events::*;
 use super::person_states::{PersonState, PersonStateCommand, create_person_state_machine};
@@ -18,33 +21,53 @@ use super::person_states::{PersonState, PersonStateCommand, create_person_state_
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PersonMarker;
 
+// Implement marker traits for formal domain types
+impl DomainConcept for PersonMarker {}
+
 /// Person ID type alias
+///
+/// Uses EntityId<PersonMarker> which now implements FormalEntityId
+/// thanks to the blanket implementation in cim-domain.
 pub type PersonId = EntityId<PersonMarker>;
 
-/// The Person aggregate - minimal core identity only
-/// 
-/// In ECS architecture, a Person is just:
-/// - An ID (entity)
-/// - Core identity traits (name, birth date)
-/// - Lifecycle state (active, merged)
-/// - Component tracking (what components are attached)
-/// 
-/// Everything else (addresses, employment, skills, etc.) are separate components
-/// that can be composed onto the person entity.
+/// The Person aggregate - PURE domain model
+///
+/// **Person domain contains ONLY intrinsic person properties:**
+/// - Unique ID (PersonId)
+/// - Name (legal name)
+/// - Birth/Death dates (lifecycle events)
+/// - Physical attributes (eye color, height, weight, etc.)
+/// - Lifecycle state (active, deceased, deactivated, merged)
+///
+/// **NOT in Person domain** (belong in other domains):
+/// - Email/Phone → Contact domain (separate entities that reference PersonId)
+/// - Address → Location domain (separate entity)
+/// - Employment → Organization domain (relationship)
+/// - Skills → Skills domain (separate aggregates)
+/// - Relationships → Relationship domain (graph edges, not node properties)
+///
+/// This follows pure FP/DDD principles: Person contains only what IS a person,
+/// not what a person HAS or what a person DOES.
+///
+/// # Category Theory Compliance
+///
+/// Person is a Coalgebra: Person → F(Person)
+/// The `unfold` method expands Person into its attribute structure (PersonAttributeSet)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Person {
-    /// Unique identifier (the Entity in ECS)
+    /// Unique identifier
     pub id: PersonId,
-    
-    /// Core identity - the minimal data that defines a person
+
+    /// Core identity - name and vital dates
     pub core_identity: CoreIdentity,
-    
+
+    /// Extensible attribute collection (EAV pattern)
+    /// Includes: birth details, physical attributes, demographics, healthcare, etc.
+    pub attributes: PersonAttributeSet,
+
     /// Lifecycle state
     pub lifecycle: PersonLifecycle,
-    
-    /// Components attached to this person (for tracking/validation)
-    pub components: HashSet<ComponentType>,
-    
+
     /// Event sourcing version
     pub version: u64,
 }
@@ -54,19 +77,24 @@ pub struct Person {
 pub struct CoreIdentity {
     /// Legal name (can change but is core identity)
     pub legal_name: PersonName,
-    
+
     /// Birth date (immutable once set)
     pub birth_date: Option<chrono::NaiveDate>,
-    
+
     /// Death date (immutable once set)
     pub death_date: Option<chrono::NaiveDate>,
-    
+
     /// When this person record was created
     pub created_at: DateTime<Utc>,
-    
+
     /// Last update to core identity
     pub updated_at: DateTime<Utc>,
 }
+
+// Physical attributes removed - they belong in specialized domains:
+// - Medical domain: blood type, height, weight
+// - Security domain: physical descriptions for identification
+// - Any physical data should reference PersonId, not be stored here
 
 /// Person lifecycle state
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -84,92 +112,11 @@ pub enum PersonLifecycle {
     Deceased { date_of_death: chrono::NaiveDate },
 }
 
-/// Types of components that can be attached to a person
-/// This is for tracking and validation, not for storing the actual data
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ComponentType {
-    // Contact components
-    EmailAddress,
-    PhoneNumber,
-    MessagingApp,
-    
-    // Location components (from location domain)
-    Address,
-    
-    // Professional components (from organization domain)
-    Employment,
-    ProfessionalAffiliation,
-    Project,
-    
-    // Skill components
-    Skill,
-    Skills,  // Plural variant for multiple skills
-    Certification,
-    Education,
-    
-    // Social components
-    SocialProfile,
-    Website,
-    ProfessionalNetwork,
-    Relationship,
-    
-    // Business components
-    CustomerSegment,
-    BehavioralData,
-    
-    // Preference components
-    CommunicationPreferences,
-    PrivacyPreferences,
-    GeneralPreferences,
-    Preferences,  // Generic preferences
-    
-    // Location component (distinct from Address)
-    Location,
-    
-    // Relationship components
-    Relationships,
-    
-    // Generic components
-    Tag,
-    CustomAttribute,
-    Custom(String),  // Custom component with name
-}
-
-impl fmt::Display for ComponentType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ComponentType::EmailAddress => write!(f, "EmailAddress"),
-            ComponentType::PhoneNumber => write!(f, "PhoneNumber"),
-            ComponentType::MessagingApp => write!(f, "MessagingApp"),
-            ComponentType::Address => write!(f, "Address"),
-            ComponentType::Employment => write!(f, "Employment"),
-            ComponentType::ProfessionalAffiliation => write!(f, "ProfessionalAffiliation"),
-            ComponentType::Project => write!(f, "Project"),
-            ComponentType::Skill => write!(f, "Skill"),
-            ComponentType::Skills => write!(f, "Skills"),
-            ComponentType::Certification => write!(f, "Certification"),
-            ComponentType::Education => write!(f, "Education"),
-            ComponentType::SocialProfile => write!(f, "SocialProfile"),
-            ComponentType::Website => write!(f, "Website"),
-            ComponentType::ProfessionalNetwork => write!(f, "ProfessionalNetwork"),
-            ComponentType::Relationship => write!(f, "Relationship"),
-            ComponentType::CustomerSegment => write!(f, "CustomerSegment"),
-            ComponentType::BehavioralData => write!(f, "BehavioralData"),
-            ComponentType::CommunicationPreferences => write!(f, "CommunicationPreferences"),
-            ComponentType::PrivacyPreferences => write!(f, "PrivacyPreferences"),
-            ComponentType::GeneralPreferences => write!(f, "GeneralPreferences"),
-            ComponentType::Preferences => write!(f, "Preferences"),
-            ComponentType::Location => write!(f, "Location"),
-            ComponentType::Relationships => write!(f, "Relationships"),
-            ComponentType::Tag => write!(f, "Tag"),
-            ComponentType::CustomAttribute => write!(f, "CustomAttribute"),
-            ComponentType::Custom(name) => write!(f, "Custom({})", name),
-        }
-    }
-}
-
 impl Person {
     /// Create a new person with just core identity
+    ///
+    /// Person domain is minimal: just ID, name, and lifecycle.
+    /// Attributes can be added via commands after creation.
     pub fn new(id: PersonId, legal_name: PersonName) -> Self {
         let now = Utc::now();
         Self {
@@ -181,9 +128,29 @@ impl Person {
                 created_at: now,
                 updated_at: now,
             },
+            attributes: PersonAttributeSet::empty(),
             lifecycle: PersonLifecycle::Active,
-            components: HashSet::new(),
             version: 0,
+        }
+    }
+
+    /// Pure functional event application - consumes self, returns new self
+    ///
+    /// This is the FRP version of apply_event that follows Category Theory principles.
+    /// It consumes the current Person and returns a new Person with the event applied.
+    pub fn apply_event_pure(self, event: &PersonEvent) -> DomainResult<Self> {
+        match event {
+            PersonEvent::PersonCreated(e) => self.apply_person_created_pure(e),
+            PersonEvent::PersonUpdated(e) => self.apply_person_updated_pure(e),
+            PersonEvent::NameUpdated(e) => self.apply_name_updated_pure(e),
+            PersonEvent::BirthDateSet(e) => self.apply_birth_date_set_pure(e),
+            PersonEvent::DeathRecorded(e) => self.apply_death_recorded_pure(e),
+            PersonEvent::PersonDeactivated(e) => self.apply_person_deactivated_pure(e),
+            PersonEvent::PersonReactivated(e) => self.apply_person_reactivated_pure(e),
+            PersonEvent::PersonMergedInto(e) => self.apply_person_merged_into_pure(e),
+            PersonEvent::AttributeRecorded(e) => self.apply_attribute_recorded_pure(e),
+            PersonEvent::AttributeUpdated(e) => self.apply_attribute_updated_pure(e),
+            PersonEvent::AttributeInvalidated(e) => self.apply_attribute_invalidated_pure(e),
         }
     }
 
@@ -198,8 +165,8 @@ impl Person {
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
             },
+            attributes: PersonAttributeSet::empty(),
             lifecycle: PersonLifecycle::Active,
-            components: HashSet::new(),
             version: 0,
         }
     }
@@ -218,17 +185,7 @@ impl Person {
     pub fn lifecycle(&self) -> &PersonLifecycle {
         &self.lifecycle
     }
-    
-    /// Get count of registered components
-    pub fn component_count(&self) -> usize {
-        self.components.len()
-    }
-    
-    /// Get types of registered components
-    pub fn component_types(&self) -> Vec<ComponentType> {
-        self.components.iter().cloned().collect()
-    }
-    
+
     /// Check if person can be modified (not deceased or merged)
     pub fn can_be_modified(&self) -> Result<(), String> {
         match &self.lifecycle {
@@ -242,237 +199,296 @@ impl Person {
         }
     }
 
-    /// Check if person has a specific component type attached
-    pub fn has_component(&self, component_type: &ComponentType) -> bool {
-        self.components.contains(component_type)
+    // ========================================================================
+    // ATTRIBUTE METHODS - Category Theory Compliance
+    // ========================================================================
+
+    /// Coalgebra unfold: Person → F(Person)
+    ///
+    /// Expands Person into its attribute structure (PersonAttributeSet).
+    /// This is the fundamental coalgebra operation that makes Person
+    /// a Category Theory compliant structure.
+    pub fn unfold(&self) -> PersonAttributeSet {
+        self.attributes.clone()
     }
 
-    /// Register that a component has been attached (legacy method for backward compatibility)
-    pub fn register_component(&mut self, component_type: ComponentType) -> DomainResult<()> {
-        self.register_component_with_source(component_type, "unknown".to_string())
-    }
-    
-    /// Register that a component has been attached with tracking of who registered it
-    pub fn register_component_with_source(&mut self, component_type: ComponentType, registered_by: String) -> DomainResult<()> {
-        // Check if person can be modified
-        self.can_be_modified().map_err(|e| DomainError::ValidationError(e))?;
-        
-        if !self.is_active() {
-            return Err(DomainError::ValidationError(
-                "Cannot add components to inactive person".to_string()
-            ));
-        }
-        
-        // Use the command handler to ensure events are generated
-        let cmd = RegisterComponent {
-            person_id: self.id,
-            component_type,
-            registered_by,
-        };
-        
-        let command = PersonCommand::RegisterComponent(cmd);
-        self.handle_command(command)
-            .map_err(|e| DomainError::ValidationError(e))?;
-        
-        Ok(())
+    /// Get a specific attribute by type
+    pub fn get_attribute(&self, attr_type: &AttributeType) -> Option<&PersonAttribute> {
+        self.attributes.find_by_type(attr_type)
     }
 
-    /// Register that a component has been removed
-    pub fn unregister_component(&mut self, component_type: &ComponentType) -> DomainResult<()> {
-        self.components.remove(component_type);
-        self.core_identity.updated_at = Utc::now();
-        Ok(())
+    /// Get all current attributes
+    pub fn get_all_attributes(&self) -> &PersonAttributeSet {
+        &self.attributes
     }
 
-    /// Handle commands - only core identity commands
-    pub fn handle_command(&mut self, command: PersonCommand) -> Result<Vec<PersonEvent>, String> {
-        // First check state machine if this command affects state
-        // Skip state machine validation for reactivation since it has special handling
-        if !matches!(command, PersonCommand::ReactivatePerson(_)) {
-            if let Some(state_command) = PersonStateCommand::from_person_command(&command) {
-                let current_state = PersonState::from(self.lifecycle.clone());
-                let state_machine = create_person_state_machine();
-                
-                // Validate state transition
-                match state_machine.validate_transition(&current_state, &state_command) {
-                    Ok(new_state) => {
-                        // State transition is valid, proceed
-                        tracing::debug!("State transition: {:?} -> {:?}", current_state, new_state);
-                    }
-                    Err(e) => {
-                        return Err(format!("State transition failed: {}", e));
-                    }
+    /// Temporal query: Get attributes valid on a specific date
+    ///
+    /// This allows querying: "What attributes were valid on 2020-01-01?"
+    pub fn observe_at(&self, date: chrono::NaiveDate) -> PersonAttributeSet {
+        self.attributes.valid_on(date)
+    }
+
+    /// Get currently valid attributes
+    pub fn observe_now(&self) -> PersonAttributeSet {
+        self.attributes.currently_valid()
+    }
+
+    /// Functor map over attributes
+    ///
+    /// Transforms all attributes while preserving structure.
+    /// This is structure-preserving: the temporal relationships,
+    /// provenance, and attribute types remain intact.
+    pub fn map_attributes<F>(mut self, f: F) -> Self
+    where
+        F: Fn(PersonAttribute) -> PersonAttribute,
+    {
+        self.attributes = self.attributes.map(f);
+        self
+    }
+
+    /// Get identifying attributes for disambiguation
+    pub fn identifying_attributes(&self) -> PersonAttributeSet {
+        self.attributes.identifying_attributes()
+    }
+
+    /// Get healthcare-relevant attributes
+    pub fn healthcare_attributes(&self) -> PersonAttributeSet {
+        self.attributes.healthcare_attributes()
+    }
+
+    /// Add an attribute (internal method, typically called via events)
+    pub(crate) fn add_attribute(&mut self, attribute: PersonAttribute) {
+        self.attributes.attributes.push(attribute);
+    }
+}
+
+// ============================================================================
+// FORMAL CATEGORY THEORY IMPLEMENTATIONS
+// ============================================================================
+
+// Marker trait implementation for Person
+impl DomainConcept for Person {}
+
+/// MealyStateMachine implementation - Output depends on both State and Input
+///
+/// This is the fundamental model for aggregates in CIM. The same command in the same
+/// state can produce different events based on the command's parameters.
+impl MealyStateMachine for Person {
+    type State = PersonState;
+    type Input = PersonCommand;
+    type Output = Vec<PersonEvent>;
+
+    fn transition(&self, current_state: PersonState, input: PersonCommand) -> PersonState {
+        // Compute next state based on current state and command
+        // This is a pure function - NO mutation of self
+
+        match (&current_state, &input) {
+            // Draft -> Active on creation
+            (PersonState::Draft, PersonCommand::CreatePerson(_)) => PersonState::Active,
+
+            // Active -> Suspended on deactivation
+            (PersonState::Active, PersonCommand::DeactivatePerson(cmd)) => {
+                PersonState::Suspended { reason: cmd.reason.clone() }
+            }
+
+            // Suspended -> Active on reactivation
+            (PersonState::Suspended { .. }, PersonCommand::ReactivatePerson(_)) => {
+                PersonState::Active
+            }
+
+            // Active -> Deceased on death recording
+            (PersonState::Active, PersonCommand::RecordDeath(cmd)) => {
+                PersonState::Deceased { date_of_death: cmd.date_of_death }
+            }
+
+            // Active -> MergedInto on merge
+            (PersonState::Active, PersonCommand::MergePersons(cmd)) => {
+                PersonState::MergedInto {
+                    merged_into_id: cmd.target_person_id,
+                    reason: cmd.merge_reason.clone(),
                 }
             }
-        }
 
-        let events = match command {
-            PersonCommand::CreatePerson(cmd) => self.handle_create_person(cmd),
-            PersonCommand::UpdateName(cmd) => self.handle_update_name(cmd),
-            PersonCommand::SetBirthDate(cmd) => self.handle_set_birth_date(cmd),
-            PersonCommand::RecordDeath(cmd) => self.handle_record_death(cmd),
-            PersonCommand::DeactivatePerson(cmd) => self.handle_deactivate(cmd),
-            PersonCommand::ReactivatePerson(cmd) => self.handle_reactivate(cmd),
-            PersonCommand::MergePersons(cmd) => self.handle_merge(cmd),
-            
-            // Component registration commands
-            PersonCommand::RegisterComponent(cmd) => self.handle_register_component(cmd),
-            PersonCommand::UnregisterComponent(cmd) => self.handle_unregister_component(cmd),
-            
-            // New commands that don't have handlers yet
-            PersonCommand::ArchivePerson(_) => {
-                // TODO: Implement archive handler
-                Ok(vec![])
-            },
-            PersonCommand::AddComponent(_) => {
-                // Component addition is handled by component store, not aggregate
-                Ok(vec![])
-            },
-            PersonCommand::UpdateComponent(_) => {
-                // Component updates are handled by component store, not aggregate
-                Ok(vec![])
-            },
-        }?;
-        
-        // Apply the events to update state
-        use super::EventSourced;
-        for event in &events {
-            self.apply_event(event).map_err(|e| e.to_string())?;
+            // For commands that don't change state, return current state
+            _ => current_state,
         }
-        
-        Ok(events)
     }
 
-    // Command handlers for core identity only
-    
-    fn handle_create_person(&mut self, cmd: CreatePerson) -> Result<Vec<PersonEvent>, String> {
-        Ok(vec![PersonEvent::PersonCreated(PersonCreated {
-            person_id: cmd.person_id,
-            name: cmd.name,
-            source: cmd.source,
-            created_at: Utc::now(),
-        })])
-    }
+    fn output(&self, current_state: PersonState, input: PersonCommand) -> Vec<PersonEvent> {
+        // Compute events based on current state and command
+        // This is a pure function - NO mutation of self
 
-    fn handle_update_name(&mut self, cmd: UpdateName) -> Result<Vec<PersonEvent>, String> {
-        // Check if person can be modified (not deceased or merged)
-        self.can_be_modified()?;
-        
-        if !self.is_active() {
-            return Err("Cannot update inactive person".to_string());
-        }
-        
-        Ok(vec![PersonEvent::NameUpdated(NameUpdated {
-            person_id: self.id,
-            old_name: self.core_identity.legal_name.clone(),
-            new_name: cmd.name,
-            reason: cmd.reason,
-            updated_at: Utc::now(),
-        })])
-    }
+        // Delegate to the command handlers which are now pure
+        match input {
+            PersonCommand::CreatePerson(cmd) => {
+                vec![PersonEvent::PersonCreated(PersonCreated {
+                    person_id: cmd.person_id,
+                    name: cmd.name,
+                    source: cmd.source,
+                    created_at: Utc::now(),
+                })]
+            }
 
-    fn handle_set_birth_date(&mut self, cmd: SetBirthDate) -> Result<Vec<PersonEvent>, String> {
-        // Check if person can be modified
-        self.can_be_modified()?;
-        
-        if self.core_identity.birth_date.is_some() {
-            return Err("Birth date is immutable once set".to_string());
-        }
-        
-        Ok(vec![PersonEvent::BirthDateSet(BirthDateSet {
-            person_id: self.id,
-            birth_date: cmd.birth_date,
-            set_at: Utc::now(),
-        })])
-    }
+            PersonCommand::UpdateName(cmd) => {
+                if !matches!(current_state, PersonState::Active) {
+                    return vec![]; // No event if not active
+                }
+                vec![PersonEvent::NameUpdated(NameUpdated {
+                    person_id: self.id,
+                    old_name: self.core_identity.legal_name.clone(),
+                    new_name: cmd.name,
+                    reason: cmd.reason,
+                    updated_at: Utc::now(),
+                })]
+            }
 
-    fn handle_record_death(&mut self, cmd: RecordDeath) -> Result<Vec<PersonEvent>, String> {
-        if let PersonLifecycle::Deceased { .. } = self.lifecycle {
-            return Err("Person is already recorded as deceased".to_string());
-        }
-        
-        Ok(vec![PersonEvent::DeathRecorded(DeathRecorded {
-            person_id: self.id,
-            date_of_death: cmd.date_of_death,
-            recorded_at: Utc::now(),
-        })])
-    }
+            PersonCommand::SetBirthDate(cmd) => {
+                if self.core_identity.birth_date.is_some() {
+                    return vec![]; // Birth date is immutable
+                }
+                vec![PersonEvent::BirthDateSet(BirthDateSet {
+                    person_id: self.id,
+                    birth_date: cmd.birth_date,
+                    set_at: Utc::now(),
+                })]
+            }
 
-    fn handle_deactivate(&mut self, cmd: DeactivatePerson) -> Result<Vec<PersonEvent>, String> {
-        // Check if person can be modified
-        self.can_be_modified()?;
-        
-        if !self.is_active() {
-            return Err("Person is not active".to_string());
-        }
-        
-        Ok(vec![PersonEvent::PersonDeactivated(PersonDeactivated {
-            person_id: self.id,
-            reason: cmd.reason,
-            deactivated_at: Utc::now(),
-        })])
-    }
+            PersonCommand::RecordDeath(cmd) => {
+                if matches!(self.lifecycle, PersonLifecycle::Deceased { .. }) {
+                    return vec![]; // Already deceased
+                }
+                vec![PersonEvent::DeathRecorded(DeathRecorded {
+                    person_id: self.id,
+                    date_of_death: cmd.date_of_death,
+                    recorded_at: Utc::now(),
+                })]
+            }
 
-    fn handle_reactivate(&mut self, cmd: ReactivatePerson) -> Result<Vec<PersonEvent>, String> {
-        match self.lifecycle {
-            PersonLifecycle::Deactivated { .. } => {
-                Ok(vec![PersonEvent::PersonReactivated(PersonReactivated {
+            PersonCommand::DeactivatePerson(cmd) => {
+                if !self.is_active() {
+                    return vec![]; // Not active
+                }
+                vec![PersonEvent::PersonDeactivated(PersonDeactivated {
+                    person_id: self.id,
+                    reason: cmd.reason,
+                    deactivated_at: Utc::now(),
+                })]
+            }
+
+            PersonCommand::ReactivatePerson(cmd) => {
+                if !matches!(self.lifecycle, PersonLifecycle::Deactivated { .. }) {
+                    return vec![]; // Not deactivated
+                }
+                vec![PersonEvent::PersonReactivated(PersonReactivated {
                     person_id: self.id,
                     reason: cmd.reason,
                     reactivated_at: Utc::now(),
-                })])
+                })]
             }
-            _ => Err("Can only reactivate deactivated persons".to_string()),
+
+            PersonCommand::MergePersons(cmd) => {
+                if !self.is_active() {
+                    return vec![]; // Not active
+                }
+                vec![PersonEvent::PersonMergedInto(PersonMergedInto {
+                    source_person_id: self.id,
+                    merged_into_id: cmd.target_person_id,
+                    merge_reason: cmd.merge_reason,
+                    merged_at: Utc::now(),
+                })]
+            }
+
+            PersonCommand::RecordAttribute(cmd) => {
+                if !self.is_active() {
+                    return vec![]; // Can only add attributes to active persons
+                }
+                vec![PersonEvent::AttributeRecorded(crate::events::AttributeRecorded {
+                    person_id: self.id,
+                    attribute: cmd.attribute,
+                    recorded_at: Utc::now(),
+                })]
+            }
+
+            PersonCommand::UpdateAttribute(cmd) => {
+                if !self.is_active() {
+                    return vec![]; // Can only update attributes for active persons
+                }
+                // Find the existing attribute
+                if let Some(old_attr) = self.get_attribute(&cmd.attribute_type) {
+                    vec![PersonEvent::AttributeUpdated(crate::events::AttributeUpdated {
+                        person_id: self.id,
+                        attribute_type: cmd.attribute_type,
+                        old_attribute: old_attr.clone(),
+                        new_attribute: cmd.new_attribute,
+                        updated_at: Utc::now(),
+                    })]
+                } else {
+                    vec![] // Attribute not found, no event
+                }
+            }
+
+            PersonCommand::InvalidateAttribute(cmd) => {
+                if !self.is_active() {
+                    return vec![]; // Can only invalidate attributes for active persons
+                }
+                vec![PersonEvent::AttributeInvalidated(crate::events::AttributeInvalidated {
+                    person_id: self.id,
+                    attribute_type: cmd.attribute_type,
+                    invalidated_at: Utc::now(),
+                    reason: cmd.reason,
+                })]
+            }
+
+            // Commands not yet fully implemented
+            PersonCommand::ArchivePerson(_) => vec![],
         }
     }
+}
 
-    fn handle_merge(&mut self, cmd: MergePersons) -> Result<Vec<PersonEvent>, String> {
-        // Check if person can be modified
-        self.can_be_modified()?;
-        
-        if !self.is_active() {
-            return Err("Cannot merge inactive person".to_string());
-        }
-        
-        let merge_event = PersonEvent::PersonMergedInto(PersonMergedInto {
-            source_person_id: self.id,
-            merged_into_id: cmd.target_person_id,
-            merge_reason: cmd.merge_reason,
-            merged_at: Utc::now(),
-        });
-        
-        Ok(vec![merge_event])
+/// FormalDomainEntity implementation - Required for Aggregate trait
+impl FormalDomainEntity for Person {
+    type Id = PersonId;
+
+    fn id(&self) -> Self::Id {
+        self.id
+    }
+}
+
+/// Aggregate trait implementation - The formal Category Theory aggregate
+///
+/// This combines FormalDomainEntity + MealyStateMachine + additional requirements
+/// to form a complete formal aggregate according to CIM domain algebra.
+impl Aggregate for Person {
+    type State = PersonState;
+    type Command = PersonCommand;
+    type Event = PersonEvent;
+
+    fn state(&self) -> PersonState {
+        PersonState::from(self.lifecycle.clone())
     }
 
-    fn handle_register_component(&mut self, cmd: RegisterComponent) -> Result<Vec<PersonEvent>, String> {
-        // Check if person can be modified
-        self.can_be_modified()?;
-        
-        if self.components.contains(&cmd.component_type) {
-            return Err("Component already registered".to_string());
-        }
-        
-        Ok(vec![PersonEvent::ComponentRegistered(ComponentRegistered {
-            person_id: self.id,
-            component_type: cmd.component_type,
-            registered_at: Utc::now(),
-            registered_by: cmd.registered_by,
-        })])
-    }
+    fn handle(self, cmd: PersonCommand) -> Result<(Self, Vec<PersonEvent>), DomainError> {
+        // Get current state
+        let current_state = self.state();
 
-    fn handle_unregister_component(&mut self, cmd: UnregisterComponent) -> Result<Vec<PersonEvent>, String> {
-        // Check if person can be modified
-        self.can_be_modified()?;
-        
-        if !self.components.contains(&cmd.component_type) {
-            return Err("Component not registered".to_string());
+        // Validate state transition using state machine
+        if let Some(state_cmd) = PersonStateCommand::from_person_command(&cmd) {
+            let state_machine = create_person_state_machine();
+            let _new_state = state_machine
+                .validate_transition(&current_state, &state_cmd)
+                .map_err(|e| DomainError::ValidationError(e.to_string()))?;
         }
-        
-        Ok(vec![PersonEvent::ComponentUnregistered(ComponentUnregistered {
-            person_id: self.id,
-            component_type: cmd.component_type,
-            unregistered_at: Utc::now(),
-        })])
+
+        // Compute events using MealyStateMachine::output
+        let events = MealyStateMachine::output(&self, current_state.clone(), cmd.clone());
+
+        // Apply events to get new aggregate state
+        let new_self = events.iter().try_fold(self, |person, event| {
+            person.apply_event_pure(event)
+        })?;
+
+        Ok((new_self, events))
     }
 }
 
@@ -492,113 +508,176 @@ impl AggregateRoot for Person {
     }
 }
 
-// EventSourced implementation
+// ============================================================================
+// EVENT SOURCED IMPLEMENTATION - Pure Functional
+// ============================================================================
+
 impl super::EventSourced for Person {
     type Event = PersonEvent;
-    
-    fn apply_event(&mut self, event: &PersonEvent) -> DomainResult<()> {
-        match event {
-            PersonEvent::PersonCreated(e) => self.apply_person_created(e),
-            PersonEvent::PersonUpdated(e) => self.apply_person_updated(e),
-            PersonEvent::NameUpdated(e) => self.apply_name_updated(e),
-            PersonEvent::BirthDateSet(e) => self.apply_birth_date_set(e),
-            PersonEvent::DeathRecorded(e) => self.apply_death_recorded(e),
-            PersonEvent::ComponentRegistered(e) => self.apply_component_registered(e),
-            PersonEvent::ComponentUnregistered(e) => self.apply_component_unregistered(e),
-            PersonEvent::PersonDeactivated(e) => self.apply_person_deactivated(e),
-            PersonEvent::PersonReactivated(e) => self.apply_person_reactivated(e),
-            PersonEvent::PersonMergedInto(e) => self.apply_person_merged_into(e),
-            PersonEvent::ComponentDataUpdated(e) => self.apply_component_data_updated(e),
-        }
+
+    fn apply_event(self, event: &PersonEvent) -> DomainResult<Self> {
+        self.apply_event_pure(event)
     }
 }
 
-// Event application methods
 impl Person {
-    fn apply_person_created(&mut self, event: &PersonCreated) -> DomainResult<()> {
-        self.id = event.person_id;
-        self.core_identity.legal_name = event.name.clone();
-        self.core_identity.created_at = event.created_at;
-        self.core_identity.updated_at = event.created_at;
-        self.lifecycle = PersonLifecycle::Active;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_name_updated(&mut self, event: &NameUpdated) -> DomainResult<()> {
-        self.core_identity.legal_name = event.new_name.clone();
-        self.core_identity.updated_at = event.updated_at;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_birth_date_set(&mut self, event: &BirthDateSet) -> DomainResult<()> {
-        self.core_identity.birth_date = Some(event.birth_date);
-        self.core_identity.updated_at = event.set_at;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_death_recorded(&mut self, event: &DeathRecorded) -> DomainResult<()> {
-        self.core_identity.death_date = Some(event.date_of_death);
-        self.lifecycle = PersonLifecycle::Deceased { date_of_death: event.date_of_death };
-        self.core_identity.updated_at = event.recorded_at;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_component_registered(&mut self, event: &ComponentRegistered) -> DomainResult<()> {
-        self.components.insert(event.component_type.clone());
-        self.core_identity.updated_at = event.registered_at;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_component_unregistered(&mut self, event: &ComponentUnregistered) -> DomainResult<()> {
-        self.components.remove(&event.component_type);
-        self.core_identity.updated_at = event.unregistered_at;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_person_deactivated(&mut self, event: &PersonDeactivated) -> DomainResult<()> {
-        self.lifecycle = PersonLifecycle::Deactivated {
-            reason: event.reason.clone(),
-            since: event.deactivated_at,
-        };
-        self.core_identity.updated_at = event.deactivated_at;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_person_reactivated(&mut self, event: &PersonReactivated) -> DomainResult<()> {
-        self.lifecycle = PersonLifecycle::Active;
-        self.core_identity.updated_at = event.reactivated_at;
-        self.increment_version();
-        Ok(())
-    }
-    
-    fn apply_person_merged_into(&mut self, event: &PersonMergedInto) -> DomainResult<()> {
-        self.lifecycle = PersonLifecycle::MergedInto {
-            target_id: event.merged_into_id,
-            merged_at: event.merged_at,
-        };
-        self.core_identity.updated_at = event.merged_at;
-        self.increment_version();
-        Ok(())
+    // ============================================================================
+    // PURE FUNCTIONAL EVENT APPLICATION METHODS (Category Theory compliant)
+    // ============================================================================
+
+    fn apply_person_created_pure(self, event: &PersonCreated) -> DomainResult<Self> {
+        Ok(Self {
+            id: event.person_id,
+            core_identity: CoreIdentity {
+                legal_name: event.name.clone(),
+                birth_date: None,
+                death_date: None,
+                created_at: event.created_at,
+                updated_at: event.created_at,
+            },
+            attributes: PersonAttributeSet::empty(),
+            lifecycle: PersonLifecycle::Active,
+            version: self.version + 1,
+        })
     }
 
-    fn apply_component_data_updated(&mut self, _event: &ComponentDataUpdated) -> DomainResult<()> {
-        // Component data is managed by the component store, not the aggregate
-        // This event is for audit/notification purposes only
-        Ok(())
+    fn apply_name_updated_pure(self, event: &NameUpdated) -> DomainResult<Self> {
+        Ok(Self {
+            core_identity: CoreIdentity {
+                legal_name: event.new_name.clone(),
+                updated_at: event.updated_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
     }
 
-    fn apply_person_updated(&mut self, event: &PersonUpdated) -> DomainResult<()> {
-        self.core_identity.legal_name = event.name.clone();
-        self.core_identity.updated_at = event.updated_at;
-        self.increment_version();
-        Ok(())
+    fn apply_birth_date_set_pure(self, event: &BirthDateSet) -> DomainResult<Self> {
+        Ok(Self {
+            core_identity: CoreIdentity {
+                birth_date: Some(event.birth_date),
+                updated_at: event.set_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+    fn apply_death_recorded_pure(self, event: &DeathRecorded) -> DomainResult<Self> {
+        Ok(Self {
+            core_identity: CoreIdentity {
+                death_date: Some(event.date_of_death),
+                updated_at: event.recorded_at,
+                ..self.core_identity
+            },
+            lifecycle: PersonLifecycle::Deceased { date_of_death: event.date_of_death },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+
+    fn apply_person_deactivated_pure(self, event: &PersonDeactivated) -> DomainResult<Self> {
+        Ok(Self {
+            lifecycle: PersonLifecycle::Deactivated {
+                reason: event.reason.clone(),
+                since: event.deactivated_at,
+            },
+            core_identity: CoreIdentity {
+                updated_at: event.deactivated_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+    fn apply_person_reactivated_pure(self, event: &PersonReactivated) -> DomainResult<Self> {
+        Ok(Self {
+            lifecycle: PersonLifecycle::Active,
+            core_identity: CoreIdentity {
+                updated_at: event.reactivated_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+    fn apply_person_merged_into_pure(self, event: &PersonMergedInto) -> DomainResult<Self> {
+        Ok(Self {
+            lifecycle: PersonLifecycle::MergedInto {
+                target_id: event.merged_into_id,
+                merged_at: event.merged_at,
+            },
+            core_identity: CoreIdentity {
+                updated_at: event.merged_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+    fn apply_person_updated_pure(self, event: &PersonUpdated) -> DomainResult<Self> {
+        Ok(Self {
+            core_identity: CoreIdentity {
+                legal_name: event.name.clone(),
+                updated_at: event.updated_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+    // ========================================================================
+    // ATTRIBUTE EVENT HANDLERS - Pure Functional
+    // ========================================================================
+
+    fn apply_attribute_recorded_pure(mut self, event: &crate::events::AttributeRecorded) -> DomainResult<Self> {
+        // Add the attribute to the set
+        self.attributes.attributes.push(event.attribute.clone());
+        Ok(Self {
+            core_identity: CoreIdentity {
+                updated_at: event.recorded_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+    fn apply_attribute_updated_pure(mut self, event: &crate::events::AttributeUpdated) -> DomainResult<Self> {
+        // Find and replace the attribute
+        if let Some(pos) = self.attributes.attributes.iter().position(|attr| &attr.attribute_type == &event.attribute_type) {
+            self.attributes.attributes[pos] = event.new_attribute.clone();
+        }
+        Ok(Self {
+            core_identity: CoreIdentity {
+                updated_at: event.updated_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
+    }
+
+    fn apply_attribute_invalidated_pure(mut self, event: &crate::events::AttributeInvalidated) -> DomainResult<Self> {
+        // Update the attribute's valid_until field
+        if let Some(attr) = self.attributes.attributes.iter_mut().find(|attr| &attr.attribute_type == &event.attribute_type) {
+            attr.temporal.valid_until = Some(event.invalidated_at.date_naive());
+        }
+        Ok(Self {
+            core_identity: CoreIdentity {
+                updated_at: event.invalidated_at,
+                ..self.core_identity
+            },
+            version: self.version + 1,
+            ..self
+        })
     }
 }
 

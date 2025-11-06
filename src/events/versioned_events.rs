@@ -1,7 +1,7 @@
 //! Versioned events for Person domain
 
 use super::versioning::{VersionedEvent, EventVersionRegistry, FunctionMigration};
-use crate::aggregate::{PersonId, ComponentType};
+use crate::aggregate::PersonId;
 use crate::value_objects::PersonName;
 use crate::infrastructure::EventMetadata;
 use serde::{Deserialize, Serialize};
@@ -26,6 +26,7 @@ macro_rules! versioned_event {
 // Version 1.0 Events (Original)
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)] // Used for event store deserialization during migrations
 pub struct PersonCreatedV1 {
     pub person_id: PersonId,
     pub name: PersonName,
@@ -85,12 +86,13 @@ pub struct PersonArchivedV2 {
 
 versioned_event!(PersonArchivedV2, version = "2.0", event_type = "PersonArchived");
 
-// Component events
+// Component events - DEPRECATED (components belong in separate domains)
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)] // DEPRECATED - kept for event store compatibility only
 pub struct ComponentAddedV2 {
     pub person_id: PersonId,
-    pub component_type: ComponentType,
+    pub component_type: String,  // Changed from ComponentType to String
     pub component_data: serde_json::Value,
     pub metadata: EventMetadata,
 }
@@ -98,9 +100,10 @@ pub struct ComponentAddedV2 {
 versioned_event!(ComponentAddedV2, version = "2.0", event_type = "ComponentAdded");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)] // DEPRECATED - kept for event store compatibility only
 pub struct ComponentUpdatedV2 {
     pub person_id: PersonId,
-    pub component_type: ComponentType,
+    pub component_type: String,  // Changed from ComponentType to String
     pub component_id: uuid::Uuid,
     pub changes: serde_json::Value,
     pub metadata: EventMetadata,
@@ -109,9 +112,10 @@ pub struct ComponentUpdatedV2 {
 versioned_event!(ComponentUpdatedV2, version = "2.0", event_type = "ComponentUpdated");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)] // DEPRECATED - kept for event store compatibility only
 pub struct ComponentRemovedV2 {
     pub person_id: PersonId,
-    pub component_type: ComponentType,
+    pub component_type: String,  // Changed from ComponentType to String
     pub component_id: uuid::Uuid,
     pub metadata: EventMetadata,
 }
@@ -121,6 +125,7 @@ versioned_event!(ComponentRemovedV2, version = "2.0", event_type = "ComponentRem
 // Version 3.0 Events (Future - with additional fields)
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)] // Future event version for forward compatibility
 pub struct PersonCreatedV3 {
     pub person_id: PersonId,
     pub name: PersonName,
@@ -137,7 +142,7 @@ versioned_event!(PersonCreatedV3, version = "3.0", event_type = "PersonCreated")
 /// Create and configure the event version registry
 pub fn create_event_registry() -> EventVersionRegistry {
     let mut registry = EventVersionRegistry::new();
-    
+
     // Register current versions
     registry.register_event::<PersonCreatedV2>();
     registry.register_event::<PersonNameUpdatedV2>();
@@ -164,7 +169,7 @@ pub fn create_event_registry() -> EventVersionRegistry {
                 // Add metadata
                 obj.insert("metadata".to_string(), json!({
                     "version": "1.0",
-                    "correlation_id": uuid::Uuid::new_v4().to_string(),
+                    "correlation_id": uuid::Uuid::now_v7().to_string(),
                     "causation_id": null,
                     "timestamp": created_at,
                     "actor": null,
@@ -212,7 +217,7 @@ pub fn create_event_registry() -> EventVersionRegistry {
                 // Add metadata
                 obj.insert("metadata".to_string(), json!({
                     "version": "1.0",
-                    "correlation_id": uuid::Uuid::new_v4().to_string(),
+                    "correlation_id": uuid::Uuid::now_v7().to_string(),
                     "causation_id": null,
                     "timestamp": updated_at,
                     "actor": null,

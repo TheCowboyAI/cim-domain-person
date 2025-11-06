@@ -1,21 +1,37 @@
 //! Person skills projection for skill-based analytics and recommendations
+//!
+//! NOTE: This projection should eventually move to a separate Skills domain.
+//! Skills are not core to Person identity.
 
 use super::{PersonProjection, SkillSummary};
 use crate::aggregate::PersonId;
 use crate::events::*;
-use crate::components::data::{ComponentData, ProfessionalData, Skill};
 use cim_domain::DomainResult;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
 
+/// Temporary Skill type - should come from Skills domain
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct Skill {
+    name: String,
+    category: String,
+    proficiency: String,
+    years_experience: Option<f32>,
+    last_used: Option<DateTime<Utc>>,
+    endorsement_count: u32,
+}
+
 /// Skill profile for a person
 #[derive(Debug, Clone)]
 struct PersonSkillProfile {
     person_id: PersonId,
     skills: HashMap<String, SkillInfo>,
+    #[allow(dead_code)] // Reserved for skills categorization (belongs in Skills domain)
     skill_categories: HashMap<String, HashSet<String>>,
+    #[allow(dead_code)] // Reserved for tracking updates (belongs in Skills domain)
     last_updated: DateTime<Utc>,
 }
 
@@ -68,7 +84,7 @@ impl PersonSkillsProjection {
                     proficiency: info.skill.proficiency.clone(),
                     years_experience: info.skill.years_experience,
                     last_used: info.skill.last_used,
-                    endorsement_count: info.skill.endorsement_count.unwrap_or(0),
+                    endorsement_count: info.skill.endorsement_count as usize,
                 })
                 .collect()
         } else {
@@ -161,8 +177,9 @@ impl PersonSkillsProjection {
         categories.sort();
         categories
     }
-    
+
     /// Update skill relationships based on co-occurrence
+    #[allow(dead_code)] // Reserved for skills analytics (belongs in Skills domain)
     async fn update_skill_relationships(&self, person_skills: &[String]) {
         let mut statistics = self.statistics.write().await;
         
@@ -201,64 +218,9 @@ impl PersonProjection for PersonSkillsProjection {
                 let mut profiles = self.profiles.write().await;
                 profiles.insert(e.person_id, profile);
             }
-            
-            PersonEvent::ComponentDataUpdated(e) => {
-                if let ComponentData::Professional(ProfessionalData::Skills(skills_data)) = &e.data {
-                    let mut profiles = self.profiles.write().await;
-                    let mut statistics = self.statistics.write().await;
-                    
-                    if let Some(profile) = profiles.get_mut(&e.person_id) {
-                        // Remove old skills from statistics
-                        for skill_name in profile.skills.keys() {
-                            if let Some(count) = statistics.skill_counts.get_mut(skill_name) {
-                                *count = count.saturating_sub(1);
-                                if *count == 0 {
-                                    statistics.skill_counts.remove(skill_name);
-                                }
-                            }
-                        }
-                        
-                        // Clear and rebuild profile skills
-                        profile.skills.clear();
-                        profile.skill_categories.clear();
-                        
-                        // Add new skills
-                        for skill in &skills_data.skills {
-                            let info = SkillInfo {
-                                skill: skill.clone(),
-                                added_at: e.updated_at,
-                                sources: HashSet::from(["manual".to_string()]),
-                            };
-                            
-                            profile.skills.insert(skill.name.clone(), info);
-                            profile.skill_categories
-                                .entry(skill.category.clone())
-                                .or_insert_with(HashSet::new)
-                                .insert(skill.name.clone());
-                            
-                            // Update global statistics
-                            *statistics.skill_counts
-                                .entry(skill.name.clone())
-                                .or_insert(0) += 1;
-                            
-                            statistics.skill_categories
-                                .entry(skill.category.clone())
-                                .or_insert_with(HashSet::new)
-                                .insert(skill.name.clone());
-                        }
-                        
-                        profile.last_updated = e.updated_at;
-                        
-                        // Update skill relationships
-                        drop(statistics); // Release the lock
-                        let skill_names: Vec<_> = skills_data.skills.iter()
-                            .map(|s| s.name.clone())
-                            .collect();
-                        self.update_skill_relationships(&skill_names).await;
-                    }
-                }
-            }
-            
+
+            // ComponentDataUpdated removed - skills belong in Professional/Skills domain
+
             PersonEvent::PersonDeactivated(e) => {
                 let mut profiles = self.profiles.write().await;
                 let mut statistics = self.statistics.write().await;

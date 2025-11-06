@@ -270,7 +270,7 @@ impl EventMetadata {
     pub fn new() -> Self {
         Self {
             version: "1.0".to_string(),
-            correlation_id: uuid::Uuid::new_v4(),
+            correlation_id: uuid::Uuid::now_v7(),
             causation_id: None,
             timestamp: chrono::Utc::now(),
             actor: None,
@@ -337,7 +337,7 @@ mod tests {
         assert_eq!(metadata.version, "1.0");
         assert!(metadata.causation_id.is_none());
         
-        let command_id = uuid::Uuid::new_v4();
+        let command_id = uuid::Uuid::now_v7();
         let metadata = EventMetadata::from_command(command_id);
         assert_eq!(metadata.causation_id, Some(command_id));
     }

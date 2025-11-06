@@ -24,14 +24,12 @@ pub trait Policy: Send + Sync {
             // Most policies care about these core events
             PersonEventV2::Created { .. } |
             PersonEventV2::Updated { .. } |
-            PersonEventV2::NameUpdated { .. } |
-            PersonEventV2::ComponentAdded { .. } |
-            PersonEventV2::ComponentUpdated { .. } => true,
-            
+            PersonEventV2::NameUpdated { .. } => true,
+
             // Skip archived/merged persons for most policies
             PersonEventV2::Archived { .. } |
             PersonEventV2::PersonMerged { .. } => false,
-            
+
             // Other events depend on specific policy logic
             _ => true,
         }
@@ -99,27 +97,17 @@ impl PolicyEngine {
 // Example policies
 
 mod auto_archive_policy;
-mod skill_recommendation_policy;
-mod welcome_email_policy;
-mod data_quality_policy;
 
 pub use auto_archive_policy::AutoArchiveInactivePersonsPolicy;
-pub use skill_recommendation_policy::SkillRecommendationPolicy;
-pub use welcome_email_policy::WelcomeEmailPolicy;
-pub use data_quality_policy::DataQualityPolicy;
 
 /// Create a default policy engine with standard policies
 pub fn create_default_policy_engine() -> PolicyEngine {
     let mut engine = PolicyEngine::new();
-    
+
     // Register standard policies
     engine.register(Arc::new(AutoArchiveInactivePersonsPolicy::new(
         chrono::Duration::days(365)
     )));
-    
-    engine.register(Arc::new(WelcomeEmailPolicy::new()));
-    
-    engine.register(Arc::new(DataQualityPolicy::new()));
-    
+
     engine
 }

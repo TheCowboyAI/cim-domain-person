@@ -77,7 +77,7 @@ impl PersonOnboarding {
     /// Create a new onboarding workflow
     pub fn new(person_id: PersonId) -> Self {
         Self {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             person_id,
             state: OnboardingState::Started,
             started_at: Utc::now(),
@@ -102,11 +102,10 @@ impl PersonOnboarding {
         self.state = new_state.clone();
         
         // Add state transition event
-        events.push(PersonEventV2::MetadataUpdated {
+        events.push(PersonEventV2::Updated {
             person_id: self.person_id,
-            metadata_type: "onboarding_state".to_string(),
-            metadata_value: serde_json::json!({
-                "state": format!("{:?}", new_state),
+            updates: serde_json::json!({
+                "onboarding_state": format!("{:?}", new_state),
                 "timestamp": chrono::Utc::now()
             }),
             metadata: EventMetadata::new(),
@@ -116,62 +115,36 @@ impl PersonOnboarding {
         match command {
             OnboardingCommand::VerifyIdentity { identity_id } => {
                 self.identity_id = Some(identity_id);
-                events.push(PersonEventV2::IdentityLinked {
+                events.push(PersonEventV2::Updated {
                     person_id: self.person_id,
-                    identity_id,
-                    identity_type: "primary".to_string(),
+                    updates: serde_json::json!({
+                        "identity_verified": true,
+                        "identity_id": identity_id
+                    }),
                     metadata: EventMetadata::new(),
                 });
             }
             
             OnboardingCommand::ProvideBasicInfo { email, phone } => {
                 self.basic_info = Some(BasicInfo { email: email.clone(), phone: phone.clone() });
-                
-                // Add email component
-                events.push(PersonEventV2::ComponentAdded {
-                    person_id: self.person_id,
-                    component_type: crate::aggregate::ComponentType::EmailAddress,
-                    component_data: serde_json::json!({
-                        "email": email,
-                        "type": "primary",
-                        "verified": false
-                    }),
-                    metadata: EventMetadata::new(),
-                });
-                
-                // Add phone component
-                events.push(PersonEventV2::ComponentAdded {
-                    person_id: self.person_id,
-                    component_type: crate::aggregate::ComponentType::PhoneNumber,
-                    component_data: serde_json::json!({
-                        "phone": phone,
-                        "type": "primary",
-                        "verified": false
-                    }),
-                    metadata: EventMetadata::new(),
-                });
+
+                // Note: Email and phone belong in separate domains (Contacts domain)
+                // They should be handled through cross-domain events, not Person domain events
+                // For now, we just track that basic info was provided
             }
-            
+
             OnboardingCommand::AddComponents { components } => {
+                // Components belong in their respective domains, not Person domain
+                // Just track that we received this request during onboarding
                 for component in components {
                     self.components_added.push(component.clone());
-                    events.push(PersonEventV2::ComponentAdded {
-                        person_id: self.person_id,
-                        component_type: crate::aggregate::ComponentType::CustomAttribute,
-                        component_data: component.data,
-                        metadata: EventMetadata::new(),
-                    });
                 }
             }
-            
+
             OnboardingCommand::AssignLocation { location_id } => {
                 self.location_id = Some(location_id);
-                events.push(PersonEventV2::LocationAssigned {
-                    person_id: self.person_id,
-                    location_id,
-                    location_type: "primary".to_string(),
-                    metadata: EventMetadata::new(),
-                });
+                // Location assignment belongs in Location domain
+                // This would trigger a cross-domain command to Location domain
             }
             
             OnboardingCommand::CompleteOnboarding => {
@@ -319,7 +292,7 @@ mod tests {
         assert_eq!(onboarding.state, OnboardingState::AwaitingIdentityVerification);
         
         // Verify identity
-        let identity_id = Uuid::new_v4();
+        let identity_id = Uuid::now_v7();
         let result = onboarding.handle_command(OnboardingCommand::VerifyIdentity { identity_id });
         assert!(result.is_ok());
         assert_eq!(onboarding.state, OnboardingState::CollectingBasicInfo);

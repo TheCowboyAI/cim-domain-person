@@ -279,7 +279,7 @@ impl DefaultWorkflowEngine {
         context: &mut WorkflowContext,
     ) -> WorkflowResult<HashMap<String, serde_json::Value>> {
         // Create human task event
-        let task_id = Uuid::new_v4().to_string();
+        let task_id = Uuid::now_v7().to_string();
         let subject = PersonSubject::event(
             PersonAggregate::Person,
             PersonEventType::ComponentDataUpdated,
@@ -450,6 +450,7 @@ pub struct WorkflowManager {
     instances: Arc<RwLock<HashMap<Uuid, WorkflowInstance>>>,
     engine: Arc<dyn WorkflowEngine>,
     event_sender: mpsc::UnboundedSender<WorkflowEvent>,
+    #[allow(dead_code)] // Reserved for future NATS event publishing
     nats_client: async_nats::Client,
 }
 
@@ -494,8 +495,8 @@ impl WorkflowManager {
                 .clone()
         };
         
-        let instance_id = Uuid::new_v4();
-        let correlation_id = Uuid::new_v4().to_string();
+        let instance_id = Uuid::now_v7();
+        let correlation_id = Uuid::now_v7().to_string();
         
         let instance = WorkflowInstance {
             instance_id,

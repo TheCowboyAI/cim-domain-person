@@ -351,7 +351,7 @@ impl NetworkAnalysisService {
                     let types = self.get_community_types(&community);
                     
                     communities.push(NetworkCommunity {
-                        id: Uuid::new_v4(),
+                        id: Uuid::now_v7(),
                         members: community,
                         cohesion,
                         primary_types: types,
@@ -440,9 +440,9 @@ mod tests {
     fn test_network_metrics() {
         let mut service = NetworkAnalysisService::new();
         
-        let person1 = Uuid::new_v4();
-        let person2 = Uuid::new_v4();
-        let person3 = Uuid::new_v4();
+        let person1 = Uuid::now_v7();
+        let person2 = Uuid::now_v7();
+        let person3 = Uuid::now_v7();
         
         // Create a triangle network
         service.add_relationship(person1, ProfessionalNetworkRelation {
@@ -486,10 +486,10 @@ mod tests {
     fn test_shortest_path() {
         let mut service = NetworkAnalysisService::new();
         
-        let person1 = Uuid::new_v4();
-        let person2 = Uuid::new_v4();
-        let person3 = Uuid::new_v4();
-        let person4 = Uuid::new_v4();
+        let person1 = Uuid::now_v7();
+        let person2 = Uuid::now_v7();
+        let person3 = Uuid::now_v7();
+        let person4 = Uuid::now_v7();
         
         // Create a path: 1 -> 2 -> 3 -> 4
         service.add_relationship(person1, ProfessionalNetworkRelation {

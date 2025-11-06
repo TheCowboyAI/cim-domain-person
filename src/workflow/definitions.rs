@@ -14,7 +14,7 @@ pub struct WorkflowId(pub Uuid);
 
 impl WorkflowId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4())
+        Self(Uuid::now_v7())
     }
 }
 
@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn test_workflow_instance() {
         let mut instance = WorkflowInstance {
-            instance_id: Uuid::new_v4(),
+            instance_id: Uuid::now_v7(),
             workflow_id: WorkflowId::new(),
             state: WorkflowState::Pending,
             current_node_id: None,

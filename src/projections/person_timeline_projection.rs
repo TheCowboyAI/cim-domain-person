@@ -3,7 +3,6 @@
 use super::{PersonProjection, TimelineEntry};
 use crate::aggregate::PersonId;
 use crate::events::*;
-use crate::components::data::ComponentData;
 use cim_domain::DomainResult;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -159,74 +158,7 @@ impl PersonProjection for PersonTimelineProjection {
                 
                 self.add_timeline_entry(e.person_id, entry).await;
             }
-            
-            PersonEvent::ComponentRegistered(e) => {
-                let mut metadata = HashMap::new();
-                metadata.insert("component_type".to_string(), serde_json::to_value(&e.component_type).unwrap());
-                
-                let entry = TimelineEntry {
-                    timestamp: e.registered_at,
-                    event_type: "component_registered".to_string(),
-                    title: format!("{} Component Added", e.component_type),
-                    description: format!("Registered {} component", e.component_type),
-                    metadata,
-                };
-                
-                self.add_timeline_entry(e.person_id, entry).await;
-            }
-            
-            PersonEvent::ComponentDataUpdated(e) => {
-                let (event_type, title, description) = match &e.data {
-                    ComponentData::Contact(contact) => {
-                        let contact_type = contact.contact_type();
-                        (
-                            format!("{contact_type}_updated"),
-                            format!("{contact_type} Updated"),
-                            format!("{contact_type} information updated")
-                        )
-                    }
-                    ComponentData::Professional(prof) => {
-                        let prof_type = prof.professional_type();
-                        (
-                            format!("{prof_type}_updated"),
-                            format!("{prof_type} Updated"),
-                            format!("{prof_type} information updated")
-                        )
-                    }
-                    ComponentData::Location(_) => (
-                        "location_updated".to_string(),
-                        "Location Updated".to_string(),
-                        "Location information updated".to_string()
-                    ),
-                    ComponentData::Social(social) => {
-                        let social_type = social.social_type();
-                        (
-                            format!("{social_type}_updated"),
-                            format!("{social_type} Updated"),
-                            format!("{social_type} information updated")
-                        )
-                    }
-                    ComponentData::Preferences(_) => (
-                        "preferences_updated".to_string(),
-                        "Preferences Updated".to_string(),
-                        "Preferences updated".to_string()
-                    ),
-                };
-                
-                let mut metadata = HashMap::new();
-                metadata.insert("component_id".to_string(), serde_json::to_value(e.component_id).unwrap());
-                
-                let entry = TimelineEntry {
-                    timestamp: e.updated_at,
-                    event_type,
-                    title,
-                    description,
-                    metadata,
-                };
-                
-                self.add_timeline_entry(e.person_id, entry).await;
-            }
-            
+
             PersonEvent::PersonDeactivated(e) => {
                 let mut metadata = HashMap::new();
                 metadata.insert("reason".to_string(), serde_json::to_value(&e.reason).unwrap());

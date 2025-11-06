@@ -61,14 +61,14 @@ impl PersonCommandProcessor {
             return Ok(None);
         }
         
-        // Replay events to rebuild aggregate
-        let mut person = Person::empty();
-        for envelope in events {
+        // Replay events to rebuild aggregate (pure functional)
+        let person = Person::empty();
+        let person = events.into_iter().try_fold(person, |p, envelope| {
             // Convert PersonEventV2 to PersonEvent for backward compatibility
             let event: PersonEvent = envelope.event;
-            person.apply_event(&event)?;
-        }
-        
+            p.apply_event(&event)
+        })?;
+
         Ok(Some(person))
     }
     
@@ -84,6 +84,11 @@ impl PersonCommandProcessor {
                     person_id: e.person_id,
                     name: e.name,
                     source: e.source,
+                    metadata: metadata.clone(),
+                },
+                crate::events::PersonEvent::PersonUpdated(e) => PersonEventV2::Updated {
+                    person_id: e.person_id,
+                    updates: serde_json::json!({ "name": e.name }),
                     metadata: metadata.clone(),
                 },
                 crate::events::PersonEvent::NameUpdated(e) => PersonEventV2::NameUpdated {
@@ -119,26 +124,23 @@ impl PersonCommandProcessor {
                     merge_reason: e.merge_reason,
                     metadata: metadata.clone(),
                 },
-                crate::events::PersonEvent::ComponentRegistered(e) => PersonEventV2::ComponentAdded {
+                // Attribute events - convert to Updated for now
+                // In the future, PersonEventV2 should have dedicated attribute variants
+                crate::events::PersonEvent::AttributeRecorded(e) => PersonEventV2::Updated {
                     person_id: e.person_id,
-                    component_type: e.component_type,
-                    component_data: serde_json::json!({}),
+                    updates: serde_json::json!({ "attribute_recorded": e.attribute }),
                     metadata: metadata.clone(),
                 },
-                crate::events::PersonEvent::ComponentUnregistered(e) => PersonEventV2::ComponentRemoved {
+                crate::events::PersonEvent::AttributeUpdated(e) => PersonEventV2::Updated {
                     person_id: e.person_id,
-                    component_type: e.component_type,
-                    component_id: uuid::Uuid::new_v4(),
+                    updates: serde_json::json!({ "attribute_updated": e.new_attribute }),
                     metadata: metadata.clone(),
                 },
-                crate::events::PersonEvent::ComponentDataUpdated(e) => PersonEventV2::ComponentUpdated {
+                crate::events::PersonEvent::AttributeInvalidated(e) => PersonEventV2::Updated {
                     person_id: e.person_id,
-                    component_type: crate::aggregate::ComponentType::CustomAttribute,
-                    component_id: e.component_id,
-                    changes: serde_json::to_value(&e.data).unwrap_or_default(),
+                    updates: serde_json::json!({ "attribute_invalidated": e.attribute_type }),
                     metadata: metadata.clone(),
                 },
-                _ => unreachable!("Unhandled event type"),
             }
         }).collect()
     }
@@ -177,7 +179,7 @@ impl PersonCommandProcessor {
 #[async_trait]
 impl AsyncCommandProcessor for PersonCommandProcessor {
     async fn process_command(&self, command: PersonCommand) -> DomainResult<CommandResult> {
-        let correlation_id = uuid::Uuid::new_v4();
+        let correlation_id = uuid::Uuid::now_v7();
         self.process_command_with_correlation(command, correlation_id).await
     }
     
@@ -186,7 +188,7 @@ impl AsyncCommandProcessor for PersonCommandProcessor {
         command: PersonCommand,
         correlation_id: uuid::Uuid,
     ) -> DomainResult<CommandResult> {
-        let command_id = uuid::Uuid::new_v4();
+        let command_id = uuid::Uuid::now_v7();
         let mut metadata = EventMetadata::from_command(command_id);
         metadata.correlation_id = correlation_id;
         
@@ -196,7 +198,7 @@ impl AsyncCommandProcessor for PersonCommandProcessor {
         let aggregate_id = command.aggregate_id();
         
         // Load or create aggregate
-        let mut person = match self.load_aggregate(aggregate_id).await? {
+        let person = match self.load_aggregate(aggregate_id).await? {
             Some(p) => p,
             None => {
                 if matches!(command, PersonCommand::CreatePerson(_)) {
@@ -210,11 +212,11 @@ impl AsyncCommandProcessor for PersonCommandProcessor {
         };
         
         let current_version = person.version;
-        
-        // Handle command
-        let events = person.handle_command(command)
-            .map_err(DomainError::ValidationError)?;
-        
+
+        // Handle command using formal Aggregate trait (pure functional)
+        use cim_domain::formal_domain::Aggregate;
+        let (_person, events) = person.handle(command)?;
+
         // Convert to V2 events with metadata
         let v2_events = self.convert_to_v2_events(events, metadata);
         

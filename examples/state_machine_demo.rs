@@ -1,205 +1,132 @@
-//! Example demonstrating aggregate state machines
+//! State Machine Demo
+//!
+//! This example demonstrates lifecycle state transitions using the Person aggregate.
+//! Shows the different states a person can be in (Active, Deactivated, MergedInto, Deceased)
 
 use cim_domain_person::{
-    aggregate::{
-        Person, PersonId, PersonOnboarding, PersonState,
-        OnboardingCommand
-    },
-    commands::{PersonCommand, DeactivatePerson, ReactivatePerson},
+    aggregate::{Person, PersonId, PersonLifecycle},
+    events::{PersonEvent, PersonCreated, PersonDeactivated, PersonReactivated, DeathRecorded},
     value_objects::PersonName,
 };
-use tracing::info;
-use uuid::Uuid;
+use chrono::{Utc, NaiveDate};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-    
-    info!("=== Person State Machine Demo ===");
-    
-    // Example 1: Person lifecycle state transitions
-    demo_person_lifecycle()?;
-    
-    // Example 2: Multi-step onboarding workflow
-    demo_onboarding_workflow().await?;
-    
-    Ok(())
+fn main() {
+    println!("=== Person Lifecycle State Machine Demo ===\n");
+
+    demo_basic_lifecycle();
+    demo_merge_workflow();
+    demo_death_workflow();
+
+    println!("\n✅ State machine demo completed!");
 }
 
-fn demo_person_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
-    info!("\n--- Person Lifecycle Demo ---");
-    
+fn demo_basic_lifecycle() {
+    println!("--- Basic Lifecycle State Transitions ---");
+
     let person_id = PersonId::new();
-    let mut person = Person::new(
+    let name = PersonName::new("Alice".to_string(), "Smith".to_string());
+
+    // Create event
+    let create_event = PersonEvent::PersonCreated(PersonCreated {
         person_id,
-        PersonName::new("John".to_string(), "Smith".to_string())
-    );
-    
-    info!("Initial state: {:?}", PersonState::from(person.lifecycle.clone()));
-    
-    // Deactivate person
-    let deactivate_cmd = PersonCommand::DeactivatePerson(DeactivatePerson {
-        person_id,
-        reason: "Temporary leave".to_string(),
+        name: name.clone(),
+        source: "demo".to_string(),
+        created_at: Utc::now(),
     });
-    
-    match person.handle_command(deactivate_cmd) {
-        Ok(events) => {
-            info!("Person deactivated successfully, {} events generated", events.len());
-            info!("New state: {:?}", PersonState::from(person.lifecycle.clone()));
-        }
-        Err(e) => {
-            info!("Failed to deactivate: {}", e);
-        }
-    }
-    
-    // Reactivate person
-    let reactivate_cmd = PersonCommand::ReactivatePerson(ReactivatePerson {
+
+    // Apply event to create person
+    let mut person = Person::empty();
+    person.id = person_id;
+    person = person.apply_event_pure(&create_event)
+        .expect("Failed to create person");
+
+    println!("Initial state: {:?}", person.lifecycle);
+    assert!(matches!(person.lifecycle, PersonLifecycle::Active));
+
+    // Transition: Active → Deactivated
+    let deactivate_event = PersonEvent::PersonDeactivated(PersonDeactivated {
         person_id,
-        reason: "Returned from leave".to_string(),
+        reason: "Account suspended".to_string(),
+        deactivated_at: Utc::now(),
     });
-    
-    match person.handle_command(reactivate_cmd) {
-        Ok(events) => {
-            info!("Person reactivated successfully, {} events generated", events.len());
-            info!("New state: {:?}", PersonState::from(person.lifecycle.clone()));
-        }
-        Err(e) => {
-            info!("Failed to reactivate: {}", e);
-        }
-    }
-    
-    // Try invalid transition (deactivate already active person)
-    let invalid_cmd = PersonCommand::ReactivatePerson(ReactivatePerson {
+
+    person = person.apply_event_pure(&deactivate_event)
+        .expect("Failed to deactivate");
+
+    println!("After deactivation: {:?}", person.lifecycle);
+    assert!(matches!(person.lifecycle, PersonLifecycle::Deactivated { .. }));
+    assert!(!person.is_active());
+
+    // Transition: Deactivated → Active
+    let reactivate_event = PersonEvent::PersonReactivated(PersonReactivated {
         person_id,
-        reason: "Invalid".to_string(),
+        reason: "Review completed".to_string(),
+        reactivated_at: Utc::now(),
     });
-    
-    match person.handle_command(invalid_cmd) {
-        Ok(_) => {
-            info!("Unexpected success");
-        }
-        Err(e) => {
-            info!("Expected failure: {}", e);
-        }
-    }
-    
-    Ok(())
+
+    person = person.apply_event_pure(&reactivate_event)
+        .expect("Failed to reactivate");
+
+    println!("After reactivation: {:?}", person.lifecycle);
+    assert!(matches!(person.lifecycle, PersonLifecycle::Active));
+    assert!(person.is_active());
+
+    println!();
 }
 
-async fn demo_onboarding_workflow() -> Result<(), Box<dyn std::error::Error>> {
-    info!("\n--- Onboarding Workflow Demo ---");
-    
+fn demo_merge_workflow() {
+    println!("--- Merge Workflow ---");
+
+    // Create two persons
+    let person1_id = PersonId::new();
+    let person2_id = PersonId::new();
+
+    let name1 = PersonName::new("Bob".to_string(), "Jones".to_string());
+    let mut person1 = Person::new(person1_id, name1);
+
+    println!("Person 1 (source): {} - {:?}", person1_id, person1.lifecycle);
+
+    // Merge person1 into person2
+    use cim_domain_person::events::PersonMergedInto;
+    use cim_domain_person::commands::MergeReason;
+
+    let merge_event = PersonEvent::PersonMergedInto(PersonMergedInto {
+        source_person_id: person1_id,
+        merged_into_id: person2_id,
+        merge_reason: MergeReason::DuplicateIdentity,
+        merged_at: Utc::now(),
+    });
+
+    person1 = person1.apply_event_pure(&merge_event)
+        .expect("Failed to merge");
+
+    println!("After merge: {:?}", person1.lifecycle);
+    assert!(matches!(person1.lifecycle, PersonLifecycle::MergedInto { .. }));
+
+    println!();
+}
+
+fn demo_death_workflow() {
+    println!("--- Death Recording Workflow ---");
+
     let person_id = PersonId::new();
-    let mut onboarding = PersonOnboarding::new(person_id);
-    
-    info!("Starting onboarding for person {}", person_id);
-    info!("Initial state: {:?}", onboarding.state);
-    
-    // Step 1: Start onboarding
-    let events = onboarding.handle_command(OnboardingCommand::StartOnboarding)?;
-    info!("Step 1 - Started: {:?}, {} events", onboarding.state, events.len());
-    
-    // Step 2: Verify identity
-    let identity_id = Uuid::new_v4();
-    let events = onboarding.handle_command(OnboardingCommand::VerifyIdentity { identity_id })?;
-    info!("Step 2 - Identity verified: {:?}, {} events", onboarding.state, events.len());
-    
-    // Step 3: Provide basic info
-    let events = onboarding.handle_command(OnboardingCommand::ProvideBasicInfo {
-        email: "john.smith@example.com".to_string(),
-        phone: "+1-555-0123".to_string(),
-    })?;
-    info!("Step 3 - Basic info collected: {:?}, {} events", onboarding.state, events.len());
-    
-    // Step 4: Add components
-    let components = vec![
-        cim_domain_person::aggregate::person_onboarding::ComponentData {
-            component_type: "skill".to_string(),
-            data: serde_json::json!({
-                "name": "Rust Programming",
-                "level": "Expert"
-            }),
-        },
-        cim_domain_person::aggregate::person_onboarding::ComponentData {
-            component_type: "preference".to_string(),
-            data: serde_json::json!({
-                "timezone": "America/New_York",
-                "language": "en-US"
-            }),
-        },
-    ];
-    
-    let events = onboarding.handle_command(OnboardingCommand::AddComponents { components })?;
-    info!("Step 4 - Components added: {:?}, {} events", onboarding.state, events.len());
-    
-    // Step 5: Assign location
-    let location_id = Uuid::new_v4();
-    let events = onboarding.handle_command(OnboardingCommand::AssignLocation { location_id })?;
-    info!("Step 5 - Location assigned: {:?}, {} events", onboarding.state, events.len());
-    
-    // Step 6: Complete onboarding
-    let events = onboarding.handle_command(OnboardingCommand::CompleteOnboarding)?;
-    info!("Step 6 - Onboarding completed: {:?}, {} events", onboarding.state, events.len());
-    
-    // Show final state
-    info!("\nOnboarding Summary:");
-    info!("- ID: {}", onboarding.id);
-    info!("- Person ID: {}", onboarding.person_id);
-    info!("- State: {:?}", onboarding.state);
-    info!("- Duration: {:?}", onboarding.completed_at.unwrap() - onboarding.started_at);
-    info!("- Components added: {}", onboarding.components_added.len());
-    
-    // Demo failure path
-    info!("\n--- Demonstrating Failure Path ---");
-    let mut failed_onboarding = PersonOnboarding::new(PersonId::new());
-    
-    let _ = failed_onboarding.handle_command(OnboardingCommand::StartOnboarding)?;
-    let _ = failed_onboarding.handle_command(OnboardingCommand::FailOnboarding {
-        reason: "Identity verification failed".to_string(),
-    })?;
-    
-    info!("Failed onboarding state: {:?}", failed_onboarding.state);
-    
-    // Try to continue after failure (should fail)
-    match failed_onboarding.handle_command(OnboardingCommand::VerifyIdentity { 
-        identity_id: Uuid::new_v4() 
-    }) {
-        Ok(_) => info!("Unexpected success"),
-        Err(e) => info!("Expected failure: {}", e),
-    }
-    
-    Ok(())
-}
+    let name = PersonName::new("Charlie".to_string(), "Brown".to_string());
+    let mut person = Person::new(person_id, name);
 
-// Example of creating custom workflows as aggregates
-mod custom_workflow {
-    use cim_domain_person::aggregate::{State, Command};
-    
-    #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-    #[allow(dead_code)]
-    enum EmploymentState {
-        Applied,
-        Interviewing,
-        OfferExtended,
-        Hired,
-        Rejected,
-    }
-    
-    impl State for EmploymentState {}
-    
-    #[derive(Clone, Debug)]
-    #[allow(dead_code)]
-    enum EmploymentCommand {
-        ScheduleInterview,
-        ExtendOffer,
-        AcceptOffer,
-        RejectCandidate,
-    }
-    
-    impl Command for EmploymentCommand {}
-    
-    // This demonstrates how any multi-step process can be modeled
-    // as an aggregate with a state machine
+    println!("Initial state: {:?}", person.lifecycle);
+
+    // Record death
+    let death_event = PersonEvent::DeathRecorded(DeathRecorded {
+        person_id,
+        date_of_death: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+        recorded_at: Utc::now(),
+    });
+
+    person = person.apply_event_pure(&death_event)
+        .expect("Failed to record death");
+
+    println!("After death recorded: {:?}", person.lifecycle);
+    assert!(matches!(person.lifecycle, PersonLifecycle::Deceased { .. }));
+
+    println!();
 }

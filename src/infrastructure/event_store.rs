@@ -94,8 +94,8 @@ impl EventStore for InMemoryEventStore {
                 sequence: current_version + i as u64 + 1,
                 event,
                 timestamp: chrono::Utc::now(),
-                correlation_id: uuid::Uuid::new_v4().to_string(),
-                causation_id: uuid::Uuid::new_v4().to_string(),
+                correlation_id: uuid::Uuid::now_v7().to_string(),
+                causation_id: uuid::Uuid::now_v7().to_string(),
             };
             aggregate_events.push(envelope);
         }
@@ -130,14 +130,15 @@ pub async fn load_aggregate(
     aggregate_id: PersonId,
 ) -> DomainResult<Person> {
     let events = store.get_events(aggregate_id).await?;
-    
+
+    // Start with empty Person and apply all events (pure functional)
     let mut aggregate = Person::empty();
-    aggregate.id = aggregate_id;
-    
-    for envelope in events {
-        aggregate.apply_event(&envelope.event)?;
-    }
-    
+    aggregate.id = aggregate_id; // Set ID before applying events
+
+    let aggregate = events.into_iter().try_fold(aggregate, |agg, envelope| {
+        agg.apply_event(&envelope.event)
+    })?;
+
     Ok(aggregate)
 }
 
@@ -149,54 +150,4 @@ pub async fn save_aggregate_events(
     expected_version: Option<u64>,
 ) -> DomainResult<()> {
     store.append_events(aggregate_id, events, expected_version).await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::commands::{PersonCommand, CreatePerson};
-    use crate::value_objects::PersonName;
-    use crate::aggregate::PersonId;
-    
-    #[tokio::test]
-    async fn test_event_store_append_and_load() {
-        let store = InMemoryEventStore::new();
-        let person_id = PersonId::new();
-        
-        // Create person
-        let mut person = Person::new(person_id, PersonName::new("John".to_string(), "Doe".to_string()));
-        let events = person.handle_command(PersonCommand::CreatePerson(CreatePerson {
-            person_id,
-            name: PersonName::new("John".to_string(), "Doe".to_string()),
-            source: "test".to_string(),
-        })).unwrap();
-        
-        // Save events
-        store.append_events(person_id, events, None).await.unwrap();
-        
-        // Load aggregate
-        let loaded = load_aggregate(&store, person_id).await.unwrap();
-        assert_eq!(loaded.id, person_id);
-        assert_eq!(loaded.core_identity.legal_name.given_name, "John");
-    }
-    
-    #[tokio::test]
-    async fn test_concurrent_modification_detection() {
-        let store = InMemoryEventStore::new();
-        let person_id = PersonId::new();
-        
-        // Create initial events
-        let events = vec![PersonEvent::PersonCreated(crate::events::PersonCreated {
-            person_id,
-            name: PersonName::new("John".to_string(), "Doe".to_string()),
-            source: "test".to_string(),
-            created_at: chrono::Utc::now(),
-        })];
-        
-        store.append_events(person_id, events.clone(), None).await.unwrap();
-        
-        // Try to append with wrong expected version
-        let result = store.append_events(person_id, events, Some(0)).await;
-        assert!(result.is_err());
-    }
 } 

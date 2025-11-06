@@ -1,11 +1,10 @@
 //! Enhanced events with metadata for pure event-driven architecture
 
-use crate::aggregate::{PersonId, ComponentType};
+use crate::aggregate::PersonId;
 use crate::value_objects::PersonName;
 use crate::commands::MergeReason;
 use super::{EventMetadata, PersonEvent, PersonCreated, NameUpdated, BirthDateSet, DeathRecorded};
-use super::{ComponentRegistered, ComponentUnregistered, PersonDeactivated, PersonReactivated};
-use super::{PersonMergedInto, ComponentDataUpdated};
+use super::{PersonDeactivated, PersonReactivated, PersonMergedInto};
 use serde::{Deserialize, Serialize};
 use chrono::NaiveDate;
 
@@ -59,59 +58,12 @@ pub enum PersonEventV2 {
         date_of_death: NaiveDate,
         metadata: EventMetadata,
     },
-    
-    // Component events
-    ComponentAdded {
-        person_id: PersonId,
-        component_type: ComponentType,
-        component_data: serde_json::Value,
-        metadata: EventMetadata,
-    },
-    ComponentUpdated {
-        person_id: PersonId,
-        component_type: ComponentType,
-        component_id: uuid::Uuid,
-        changes: serde_json::Value,
-        metadata: EventMetadata,
-    },
-    ComponentRemoved {
-        person_id: PersonId,
-        component_type: ComponentType,
-        component_id: uuid::Uuid,
-        metadata: EventMetadata,
-    },
-    
+
     // Relationship events
     PersonMerged {
         source_person_id: PersonId,
         target_person_id: PersonId,
         merge_reason: MergeReason,
-        metadata: EventMetadata,
-    },
-    
-    // Cross-domain events
-    LocationAssigned {
-        person_id: PersonId,
-        location_id: uuid::Uuid,
-        location_type: String,
-        metadata: EventMetadata,
-    },
-    EmploymentAdded {
-        person_id: PersonId,
-        organization_id: uuid::Uuid,
-        role: String,
-        metadata: EventMetadata,
-    },
-    IdentityLinked {
-        person_id: PersonId,
-        identity_id: uuid::Uuid,
-        identity_type: String,
-        metadata: EventMetadata,
-    },
-    MetadataUpdated {
-        person_id: PersonId,
-        metadata_type: String,
-        metadata_value: serde_json::Value,
         metadata: EventMetadata,
     },
 }
@@ -127,14 +79,7 @@ impl PersonEventV2 {
             PersonEventV2::Updated { person_id, .. } |
             PersonEventV2::NameUpdated { person_id, .. } |
             PersonEventV2::BirthDateSet { person_id, .. } |
-            PersonEventV2::DeathRecorded { person_id, .. } |
-            PersonEventV2::ComponentAdded { person_id, .. } |
-            PersonEventV2::ComponentUpdated { person_id, .. } |
-            PersonEventV2::ComponentRemoved { person_id, .. } |
-            PersonEventV2::LocationAssigned { person_id, .. } |
-            PersonEventV2::EmploymentAdded { person_id, .. } |
-            PersonEventV2::IdentityLinked { person_id, .. } |
-            PersonEventV2::MetadataUpdated { person_id, .. } => *person_id,
+            PersonEventV2::DeathRecorded { person_id, .. } => *person_id,
             PersonEventV2::PersonMerged { source_person_id, .. } => *source_person_id,
         }
     }
@@ -150,14 +95,7 @@ impl PersonEventV2 {
             PersonEventV2::NameUpdated { metadata, .. } |
             PersonEventV2::BirthDateSet { metadata, .. } |
             PersonEventV2::DeathRecorded { metadata, .. } |
-            PersonEventV2::ComponentAdded { metadata, .. } |
-            PersonEventV2::ComponentUpdated { metadata, .. } |
-            PersonEventV2::ComponentRemoved { metadata, .. } |
-            PersonEventV2::PersonMerged { metadata, .. } |
-            PersonEventV2::LocationAssigned { metadata, .. } |
-            PersonEventV2::EmploymentAdded { metadata, .. } |
-            PersonEventV2::IdentityLinked { metadata, .. } |
-            PersonEventV2::MetadataUpdated { metadata, .. } => metadata,
+            PersonEventV2::PersonMerged { metadata, .. } => metadata,
         }
     }
     
@@ -172,14 +110,7 @@ impl PersonEventV2 {
             PersonEventV2::NameUpdated { .. } => "person.name_updated",
             PersonEventV2::BirthDateSet { .. } => "person.birth_date_set",
             PersonEventV2::DeathRecorded { .. } => "person.death_recorded",
-            PersonEventV2::ComponentAdded { .. } => "person.component_added",
-            PersonEventV2::ComponentUpdated { .. } => "person.component_updated",
-            PersonEventV2::ComponentRemoved { .. } => "person.component_removed",
             PersonEventV2::PersonMerged { .. } => "person.merged",
-            PersonEventV2::LocationAssigned { .. } => "person.location_assigned",
-            PersonEventV2::EmploymentAdded { .. } => "person.employment_added",
-            PersonEventV2::IdentityLinked { .. } => "person.identity_linked",
-            PersonEventV2::MetadataUpdated { .. } => "person.metadata_updated",
         }
     }
     
@@ -210,7 +141,7 @@ impl StreamingEventEnvelope {
     /// Create a new envelope
     pub fn new(aggregate_id: PersonId, sequence: u64, event: PersonEventV2) -> Self {
         Self {
-            event_id: uuid::Uuid::new_v4(),
+            event_id: uuid::Uuid::now_v7(),
             aggregate_id,
             sequence,
             event,
@@ -264,21 +195,6 @@ impl From<PersonEventV2> for PersonEvent {
                     recorded_at: metadata.timestamp,
                 })
             }
-            PersonEventV2::ComponentAdded { person_id, component_type, .. } => {
-                PersonEvent::ComponentRegistered(ComponentRegistered {
-                    person_id,
-                    component_type,
-                    registered_at: chrono::Utc::now(),
-                    registered_by: "event_conversion".to_string(),
-                })
-            }
-            PersonEventV2::ComponentRemoved { person_id, component_type, .. } => {
-                PersonEvent::ComponentUnregistered(ComponentUnregistered {
-                    person_id,
-                    component_type,
-                    unregistered_at: chrono::Utc::now(),
-                })
-            }
             PersonEventV2::Suspended { person_id, reason, metadata } => {
                 PersonEvent::PersonDeactivated(PersonDeactivated {
                     person_id,
@@ -301,54 +217,12 @@ impl From<PersonEventV2> for PersonEvent {
                     merged_at: metadata.timestamp,
                 })
             }
-            PersonEventV2::ComponentUpdated { person_id,  component_id,  .. } => {
-                // Convert changes to ComponentData
-                // For now, create a placeholder since the exact mapping depends on component type
-                PersonEvent::ComponentDataUpdated(ComponentDataUpdated {
-                    person_id,
-                    component_id,
-                    data: crate::components::data::ComponentData::Contact(
-                        crate::components::data::ContactData::Email(
-                            crate::components::data::EmailData {
-                                email: crate::value_objects::EmailAddress::new("placeholder@example.com".to_string()).unwrap(),
-                                email_type: crate::components::data::EmailType::Personal,
-                                is_preferred_contact: false,
-                                can_receive_notifications: false,
-                                can_receive_marketing: false,
-                            }
-                        )
-                    ),
-                    updated_at: chrono::Utc::now(),
-                })
-            }
-            // Events that don't have V1 equivalents return a generic update
-            PersonEventV2::Archived { person_id, .. } |
-            PersonEventV2::Updated { person_id, .. } |
-            PersonEventV2::LocationAssigned { person_id, .. } |
-            PersonEventV2::EmploymentAdded { person_id, .. } |
-            PersonEventV2::IdentityLinked { person_id, .. } |
-            PersonEventV2::MetadataUpdated { person_id, .. } => {
-                // For events without V1 equivalent, we could either:
-                // 1. Add new variants to PersonEvent
-                // 2. Map to a generic event
-                // 3. Use ComponentDataUpdated as a catch-all
-                // For now, let's create a component update
-                PersonEvent::ComponentDataUpdated(ComponentDataUpdated {
-                    person_id,
-                    component_id: uuid::Uuid::new_v4(),
-                    data: crate::components::data::ComponentData::Contact(
-                        crate::components::data::ContactData::Email(
-                            crate::components::data::EmailData {
-                                email: crate::value_objects::EmailAddress::new("placeholder@example.com".to_string()).unwrap(),
-                                email_type: crate::components::data::EmailType::Personal,
-                                is_preferred_contact: false,
-                                can_receive_notifications: false,
-                                can_receive_marketing: false,
-                            }
-                        )
-                    ),
-                    updated_at: chrono::Utc::now(),
-                })
+            // Events that don't have V1 equivalents - map to generic update
+            PersonEventV2::Archived { .. } |
+            PersonEventV2::Updated { .. } => {
+                // These don't have direct V1 equivalents - they would need specific handling
+                // For now, we'll panic as these conversions shouldn't happen in normal flow
+                panic!("Cannot convert V2 event to V1: event type not supported in V1 schema")
             }
         }
     }

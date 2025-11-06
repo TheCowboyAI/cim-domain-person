@@ -218,7 +218,7 @@ mod tests {
     fn test_organization_relation_types() {
         let employment = OrganizationRelationType::Employment {
             department: Some("Engineering".to_string()),
-            reports_to: Some(Uuid::new_v4()),
+            reports_to: Some(Uuid::now_v7()),
         };
         
         let contractor = OrganizationRelationType::Contractor {
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn test_professional_network_influence() {
         let relation = ProfessionalNetworkRelation {
-            other_person_id: Uuid::new_v4(),
+            other_person_id: Uuid::now_v7(),
             relation_type: ProfessionalRelationType::Colleague {
                 same_team: true,
                 same_department: true,

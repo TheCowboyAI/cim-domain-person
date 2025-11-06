@@ -1,17 +1,18 @@
 //! Person domain for the Composable Information Machine
 //!
-//! This crate provides the person domain implementation following ECS architecture:
-//! - Person aggregate with minimal core identity
-//! - Components for composable capabilities
-//! - Cross-domain relationships
+//! This crate provides a pure functional person domain implementation:
+//! - Person aggregate with core identity (name, birth/death dates)
+//! - Pure functional event sourcing
+//! - Category Theory compliance (Functors, Monads, Mealy State Machines)
 //! - NATS-first messaging with comprehensive subject algebra
 //!
-//! ## ECS Architecture
+//! ## Architecture
 //!
-//! In ECS (Entity Component System), a Person is just an ID with components:
-//! - Entity: PersonId (unique identifier)
-//! - Components: EmailComponent, SkillComponent, etc. (data)
-//! - Systems: Handle commands and process components (behavior)
+//! Pure functional DDD with FRP principles:
+//! - Aggregate: Person (immutable, pure functions only)
+//! - Commands: Express intent (validated before execution)
+//! - Events: Immutable facts (what happened)
+//! - State Machines: Mealy machines for state transitions
 
 pub mod aggregate;
 pub mod commands;
@@ -21,7 +22,6 @@ pub mod projections;
 pub mod queries;
 pub mod value_objects;
 pub mod cross_domain;
-pub mod components;
 pub mod infrastructure;
 pub mod services;
 pub mod policies;
@@ -36,13 +36,6 @@ pub use events::PersonEvent;
 // Re-export core value objects (minimal set)
 pub use value_objects::PersonName;
 
-// Re-export component types
-pub use components::{
-    contact::{EmailComponent, PhoneComponent, ContactContext},
-    skills::{SkillComponent, CertificationComponent, EducationComponent},
-    preferences::{CommunicationPreferencesComponent, PrivacyPreferencesComponent},
-};
-
 // Re-export cross-domain types
 pub use cross_domain::person_organization::{EmploymentRelationship, EmploymentRole};
 
@@ -54,7 +47,6 @@ pub use infrastructure::{
     EventStore, InMemoryEventStore, EventEnvelope,
     PersonRepository, InMemorySnapshotStore,
     NatsEventStore, PersonCommandHandler,
-    ComponentStore, InMemoryComponentStore,
 };
 
 // Re-export NATS types

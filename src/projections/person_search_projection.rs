@@ -3,7 +3,6 @@
 use super::{PersonProjection, PersonSearchResult};
 use crate::aggregate::PersonId;
 use crate::events::*;
-use crate::components::data::{ComponentData, ContactData, ProfessionalData};
 use cim_domain::DomainResult;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -17,6 +16,7 @@ struct SearchEntry {
     name: String,
     name_tokens: Vec<String>,
     emails: Vec<String>,
+    #[allow(dead_code)] // Reserved for future search features
     phones: Vec<String>,
     employer: Option<String>,
     role: Option<String>,
@@ -261,52 +261,9 @@ impl PersonProjection for PersonSearchProjection {
                     entry.last_updated = e.updated_at;
                 }
             }
-            
-            PersonEvent::ComponentDataUpdated(e) => {
-                let mut index = self.index.write().await;
-                if let Some(entry) = index.get_mut(&e.person_id) {
-                    match &e.data {
-                        ComponentData::Contact(contact) => {
-                            match contact {
-                                ContactData::Email(email) => {
-                                    if !entry.emails.contains(&email.email.to_string()) {
-                                        entry.emails.push(email.email.to_string());
-                                    }
-                                }
-                                ContactData::Phone(phone) => {
-                                    if !entry.phones.contains(&phone.phone.to_string()) {
-                                        entry.phones.push(phone.phone.to_string());
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                        ComponentData::Professional(prof) => {
-                            match prof {
-                                ProfessionalData::Employment(emp) if emp.is_current => {
-                                    entry.employer = Some(emp.company.clone());
-                                    entry.role = Some(emp.position.clone());
-                                }
-                                ProfessionalData::Skills(skills) => {
-                                    entry.skills.clear();
-                                    for skill in &skills.skills {
-                                        entry.skills.insert(skill.name.clone());
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                        ComponentData::Location(loc) => {
-                            if let Some(addr) = &loc.address {
-                                entry.location = Some(format!("{}, {}", addr.city, addr.country));
-                            }
-                        }
-                        _ => {}
-                    }
-                    entry.last_updated = e.updated_at;
-                }
-            }
-            
+
+            // ComponentDataUpdated removed - components belong in separate domains
+
             PersonEvent::PersonDeactivated(e) => {
                 let mut index = self.index.write().await;
                 index.remove(&e.person_id);

@@ -100,12 +100,12 @@ impl EventStore for NatsEventStore {
                 PersonEvent::NameUpdated(_) => "name_updated",
                 PersonEvent::BirthDateSet(_) => "birth_date_set",
                 PersonEvent::DeathRecorded(_) => "death_recorded",
-                PersonEvent::ComponentRegistered(_) => "component_registered",
-                PersonEvent::ComponentUnregistered(_) => "component_unregistered",
                 PersonEvent::PersonDeactivated(_) => "deactivated",
                 PersonEvent::PersonReactivated(_) => "reactivated",
                 PersonEvent::PersonMergedInto(_) => "merged",
-                PersonEvent::ComponentDataUpdated(_) => "component_updated",
+                PersonEvent::AttributeRecorded(_) => "attribute_recorded",
+                PersonEvent::AttributeUpdated(_) => "attribute_updated",
+                PersonEvent::AttributeInvalidated(_) => "attribute_invalidated",
             };
             
             let subject = PersonSubjects::event_for(aggregate_id, event_type);
@@ -116,8 +116,8 @@ impl EventStore for NatsEventStore {
                 sequence,
                 event,
                 timestamp: chrono::Utc::now(),
-                correlation_id: uuid::Uuid::new_v4().to_string(),
-                causation_id: uuid::Uuid::new_v4().to_string(),
+                correlation_id: uuid::Uuid::now_v7().to_string(),
+                causation_id: uuid::Uuid::now_v7().to_string(),
             };
             
             let payload = serde_json::to_vec(&envelope)
@@ -247,7 +247,7 @@ impl PersonCommandHandler {
         let aggregate_id = command.aggregate_id();
         
         // Load or create aggregate
-        let mut person = match self.repository.load(aggregate_id).await? {
+        let person = match self.repository.load(aggregate_id).await? {
             Some(p) => p,
             None => {
                 if matches!(command, PersonCommand::CreatePerson(_)) {
@@ -257,15 +257,15 @@ impl PersonCommandHandler {
                 }
             }
         };
-        
-        // Handle command
-        let events = person.handle_command(command)
-            .map_err(DomainError::ValidationError)?;
-        
-        // Save events
+
+        // Handle command using formal Aggregate trait (pure functional)
+        use cim_domain::formal_domain::Aggregate;
         let expected_version = if person.version == 0 { None } else { Some(person.version) };
+        let (person, events) = person.handle(command)?;
+
+        // Save events
         self.repository.save(&person, events.clone(), expected_version).await?;
-        
+
         Ok(CommandResponse {
             aggregate_id,
             version: person.version,

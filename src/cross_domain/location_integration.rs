@@ -1,6 +1,6 @@
 //! Integration with Location domain for address management
 
-use crate::aggregate::{PersonId, ComponentType};
+use crate::aggregate::PersonId;
 use crate::events::PersonEvent;
 use crate::infrastructure::PersonRepository;
 use cim_domain::{DomainResult, DomainError};
@@ -129,22 +129,12 @@ impl LocationEventHandler {
             return Err(DomainError::AggregateNotFound(format!("Person {person_id}")));
         }
         
-        let person = person.unwrap();
-        
-        // Register that person now has an address component
-        if !person.has_component(&ComponentType::Address) {
-            let event = PersonEvent::ComponentRegistered(
-                crate::events::ComponentRegistered {
-                    person_id,
-                    component_type: ComponentType::Address,
-                    registered_at: Utc::now(),
-                    registered_by: "location_integration".to_string(),
-                }
-            );
-            
-            return Ok(vec![event]);
-        }
-        
+        let _person = person.unwrap();
+
+        // Address components belong in the Location domain, not Person domain
+        // This integration just tracks that the person exists and is active
+        // No events needed in Person domain for address assignments
+
         Ok(vec![])
     }
     
@@ -226,11 +216,17 @@ impl LocationIntegrationService {
     }
     
     /// Check if a person has any addresses
+    ///
+    /// Note: Addresses belong in the Location domain, not Person domain.
+    /// This method just verifies the person exists. To check for actual addresses,
+    /// query the Location domain directly.
     pub async fn person_has_addresses(&self, person_id: PersonId) -> DomainResult<bool> {
         let person = self.person_repository.load(person_id).await?;
+        // Person domain doesn't track addresses - they belong in Location domain
+        // Return false as we can't determine address status from Person domain
         match person {
-            Some(p) => Ok(p.has_component(&ComponentType::Address)),
-            None => Ok(false),
+            Some(_) => Ok(false), // Person exists but we don't track addresses here
+            None => Ok(false),     // Person doesn't exist
         }
     }
 } 

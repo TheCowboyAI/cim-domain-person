@@ -3,7 +3,6 @@
 use super::PersonProjection;
 use crate::aggregate::PersonId;
 use crate::events::*;
-use crate::components::data::{ComponentData, SocialData};
 use cim_domain::DomainResult;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -69,8 +68,9 @@ impl PersonNetworkProjection {
             reverse_adjacency: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Add or update a relationship
+    #[allow(dead_code)] // Reserved for relationship management (belongs in Relationships domain)
     async fn add_relationship(&self, relationship: PersonRelationship) {
         let mut relationships = self.relationships.write().await;
         let mut adjacency = self.adjacency_list.write().await;
@@ -299,37 +299,8 @@ impl PersonNetworkProjection {
 impl PersonProjection for PersonNetworkProjection {
     async fn handle_event(&self, event: &PersonEvent) -> DomainResult<()> {
         match event {
-            PersonEvent::ComponentDataUpdated(e) => {
-                if let ComponentData::Social(social_data) = &e.data {
-                    match social_data {
-                        SocialData::Relationship(rel_data) => {
-                            let relationship = PersonRelationship {
-                                from_person: e.person_id,
-                                to_person: rel_data.other_person_id,
-                                relationship_type: match rel_data.relationship_type.as_str() {
-                                    "family" => RelationshipType::Family,
-                                    "friend" => RelationshipType::Friend,
-                                    "colleague" => RelationshipType::Colleague,
-                                    "manager" => RelationshipType::Manager,
-                                    "report" => RelationshipType::Report,
-                                    "mentor" => RelationshipType::Mentor,
-                                    "mentee" => RelationshipType::Mentee,
-                                    "business_partner" => RelationshipType::BusinessPartner,
-                                    other => RelationshipType::Other(other.to_string()),
-                                },
-                                strength: 0.5, // Default strength
-                                established_at: e.updated_at,
-                                last_interaction: None,
-                                interaction_count: 0,
-                            };
-                            
-                            self.add_relationship(relationship).await;
-                        }
-                        _ => {} // Other social data types don't create relationships
-                    }
-                }
-            }
-            
+            // ComponentDataUpdated removed - relationships belong in Relationships domain
+
             PersonEvent::PersonDeactivated(e) => {
                 let mut relationships = self.relationships.write().await;
                 let mut adjacency = self.adjacency_list.write().await;

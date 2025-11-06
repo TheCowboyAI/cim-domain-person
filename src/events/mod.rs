@@ -1,18 +1,17 @@
-//! Person domain events - ECS Architecture
+//! Person domain events
 //!
-//! In ECS architecture, events focus on:
+//! Pure functional domain events capturing state changes:
 //! - Core identity changes (name, birth/death)
 //! - Lifecycle changes (active, deactivated, merged)
-//! - Component registration tracking
 //!
-//! Component-specific events are handled by their respective systems.
+//! All events are immutable and represent facts that have happened.
 
-use cim_domain::EntityId;
+use cim_domain::{EntityId, formal_domain::DomainEvent as DomainEventTrait};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, NaiveDate};
 
-use crate::aggregate::{PersonMarker, ComponentType};
-use crate::value_objects::PersonName;
+use crate::aggregate::PersonMarker;
+use crate::value_objects::{PersonName, PersonAttribute, AttributeType};
 use crate::commands::MergeReason;
 
 /// Person ID type alias
@@ -23,36 +22,55 @@ pub type PersonId = EntityId<PersonMarker>;
 pub enum PersonEvent {
     /// Person was created
     PersonCreated(PersonCreated),
-    
+
     /// Person was updated
     PersonUpdated(PersonUpdated),
-    
+
     /// Person's name was updated
     NameUpdated(NameUpdated),
-    
+
     /// Birth date was set
     BirthDateSet(BirthDateSet),
-    
+
     /// Death was recorded
     DeathRecorded(DeathRecorded),
-    
-    /// Component was registered
-    ComponentRegistered(ComponentRegistered),
-    
-    /// Component was unregistered
-    ComponentUnregistered(ComponentUnregistered),
-    
+
     /// Person was deactivated
     PersonDeactivated(PersonDeactivated),
-    
+
     /// Person was reactivated
     PersonReactivated(PersonReactivated),
-    
+
     /// Person was merged into another
     PersonMergedInto(PersonMergedInto),
-    
-    /// Component data was updated
-    ComponentDataUpdated(ComponentDataUpdated),
+
+    /// Attribute was recorded
+    AttributeRecorded(AttributeRecorded),
+
+    /// Attribute was updated
+    AttributeUpdated(AttributeUpdated),
+
+    /// Attribute was invalidated
+    AttributeInvalidated(AttributeInvalidated),
+}
+
+// Implement DomainEvent trait for formal Category Theory compliance
+impl DomainEventTrait for PersonEvent {
+    fn name(&self) -> &str {
+        match self {
+            PersonEvent::PersonCreated(_) => "PersonCreated",
+            PersonEvent::PersonUpdated(_) => "PersonUpdated",
+            PersonEvent::NameUpdated(_) => "NameUpdated",
+            PersonEvent::BirthDateSet(_) => "BirthDateSet",
+            PersonEvent::DeathRecorded(_) => "DeathRecorded",
+            PersonEvent::PersonDeactivated(_) => "PersonDeactivated",
+            PersonEvent::PersonReactivated(_) => "PersonReactivated",
+            PersonEvent::PersonMergedInto(_) => "PersonMergedInto",
+            PersonEvent::AttributeRecorded(_) => "AttributeRecorded",
+            PersonEvent::AttributeUpdated(_) => "AttributeUpdated",
+            PersonEvent::AttributeInvalidated(_) => "AttributeInvalidated",
+        }
+    }
 }
 
 // ===== Core Identity Events =====
@@ -95,28 +113,6 @@ pub struct DeathRecorded {
     pub recorded_at: DateTime<Utc>,
 }
 
-// ===== Component Management Events =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComponentRegistered {
-    pub person_id: PersonId,
-    pub component_type: ComponentType,
-    pub registered_at: DateTime<Utc>,
-    #[serde(default = "default_registered_by")]
-    pub registered_by: String,  // Track who/what system registered this
-}
-
-fn default_registered_by() -> String {
-    "unknown".to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComponentUnregistered {
-    pub person_id: PersonId,
-    pub component_type: ComponentType,
-    pub unregistered_at: DateTime<Utc>,
-}
-
 // ===== Lifecycle Events =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,9 +137,34 @@ pub struct PersonMergedInto {
     pub merged_at: DateTime<Utc>,
 }
 
-// Include new component events
-mod component_events;
-pub use component_events::*;
+// ===== Attribute Events =====
+
+/// An attribute was recorded for a person
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributeRecorded {
+    pub person_id: PersonId,
+    pub attribute: PersonAttribute,
+    pub recorded_at: DateTime<Utc>,
+}
+
+/// An existing attribute was updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributeUpdated {
+    pub person_id: PersonId,
+    pub attribute_type: AttributeType,
+    pub old_attribute: PersonAttribute,
+    pub new_attribute: PersonAttribute,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// An attribute was marked as invalid/expired
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributeInvalidated {
+    pub person_id: PersonId,
+    pub attribute_type: AttributeType,
+    pub invalidated_at: DateTime<Utc>,
+    pub reason: Option<String>,
+}
 
 // Enhanced events with metadata
 mod enhanced;
@@ -153,7 +174,7 @@ pub use enhanced::{PersonEventV2, StreamingEventEnvelope};
 mod versioning;
 mod versioned_events;
 pub use versioning::{
-    VersionedEvent, EventVersionRegistry, EventMigration, 
+    VersionedEvent, EventVersionRegistry, EventMigration,
     FunctionMigration, VersionedEventEnvelope
 };
 pub use versioned_events::{

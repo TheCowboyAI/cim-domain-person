@@ -1,18 +1,17 @@
-//! Person domain commands - ECS Architecture
+//! Person domain commands
 //!
-//! In ECS architecture, commands focus on:
+//! Pure functional domain commands following CQRS:
 //! - Core identity management (name, birth/death)
 //! - Lifecycle management (active, deactivated, merged)
-//! - Component registration tracking
 //!
-//! Component-specific operations are handled by their respective systems.
+//! Commands express intent and are validated before generating events.
 
-use cim_domain::EntityId;
+use cim_domain::{EntityId, formal_domain::DomainCommand as DomainCommandTrait};
 use serde::{Deserialize, Serialize};
 use chrono::NaiveDate;
 
-use crate::aggregate::{PersonMarker, ComponentType};
-use crate::value_objects::PersonName;
+use crate::aggregate::PersonMarker;
+use crate::value_objects::{PersonName, PersonAttribute, AttributeType};
 
 /// Person ID type alias
 pub type PersonId = EntityId<PersonMarker>;
@@ -22,39 +21,36 @@ pub type PersonId = EntityId<PersonMarker>;
 pub enum PersonCommand {
     /// Create a new person
     CreatePerson(CreatePerson),
-    
+
     /// Update person's name
     UpdateName(UpdateName),
-    
+
     /// Set birth date
     SetBirthDate(SetBirthDate),
-    
+
     /// Record death
     RecordDeath(RecordDeath),
-    
-    /// Register a component
-    RegisterComponent(RegisterComponent),
-    
-    /// Unregister a component
-    UnregisterComponent(UnregisterComponent),
-    
+
     /// Deactivate the person
     DeactivatePerson(DeactivatePerson),
-    
+
     /// Reactivate the person
     ReactivatePerson(ReactivatePerson),
-    
+
     /// Merge two persons
     MergePersons(MergePersons),
-    
+
     /// Archive a person
     ArchivePerson(ArchivePerson),
-    
-    /// Add a component with data
-    AddComponent(AddComponent),
-    
-    /// Update component data
-    UpdateComponent(UpdateComponent),
+
+    /// Record an attribute
+    RecordAttribute(RecordAttribute),
+
+    /// Update an attribute
+    UpdateAttribute(UpdateAttribute),
+
+    /// Invalidate an attribute
+    InvalidateAttribute(InvalidateAttribute),
 }
 
 // ===== Core Identity Commands =====
@@ -83,21 +79,6 @@ pub struct SetBirthDate {
 pub struct RecordDeath {
     pub person_id: PersonId,
     pub date_of_death: NaiveDate,
-}
-
-// ===== Component Management Commands =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RegisterComponent {
-    pub person_id: PersonId,
-    pub component_type: ComponentType,
-    pub registered_by: String,  // Track who/what system registered this
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UnregisterComponent {
-    pub person_id: PersonId,
-    pub component_type: ComponentType,
 }
 
 // ===== Lifecycle Commands =====
@@ -135,24 +116,30 @@ pub struct ArchivePerson {
     pub reason: String,
 }
 
+// ===== Attribute Commands =====
+
+/// Record a new attribute for a person
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddComponent {
+pub struct RecordAttribute {
     pub person_id: PersonId,
-    pub component_type: ComponentType,
-    pub data: serde_json::Value,
+    pub attribute: PersonAttribute,
 }
 
+/// Update an existing attribute
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateComponent {
+pub struct UpdateAttribute {
     pub person_id: PersonId,
-    pub component_id: uuid::Uuid,
-    pub component_type: ComponentType,
-    pub updates: serde_json::Value,
+    pub attribute_type: AttributeType,
+    pub new_attribute: PersonAttribute,
 }
 
-// Include new component commands
-mod component_commands;
-pub use component_commands::*;
+/// Invalidate an attribute (mark as no longer valid)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InvalidateAttribute {
+    pub person_id: PersonId,
+    pub attribute_type: AttributeType,
+    pub reason: Option<String>,
+}
 
 impl PersonCommand {
     /// Get the aggregate ID this command applies to
@@ -162,14 +149,32 @@ impl PersonCommand {
             PersonCommand::UpdateName(cmd) => cmd.person_id,
             PersonCommand::SetBirthDate(cmd) => cmd.person_id,
             PersonCommand::RecordDeath(cmd) => cmd.person_id,
-            PersonCommand::RegisterComponent(cmd) => cmd.person_id,
-            PersonCommand::UnregisterComponent(cmd) => cmd.person_id,
             PersonCommand::DeactivatePerson(cmd) => cmd.person_id,
             PersonCommand::ReactivatePerson(cmd) => cmd.person_id,
             PersonCommand::MergePersons(cmd) => cmd.source_person_id,
             PersonCommand::ArchivePerson(cmd) => cmd.person_id,
-            PersonCommand::AddComponent(cmd) => cmd.person_id,
-            PersonCommand::UpdateComponent(cmd) => cmd.person_id,
+            PersonCommand::RecordAttribute(cmd) => cmd.person_id,
+            PersonCommand::UpdateAttribute(cmd) => cmd.person_id,
+            PersonCommand::InvalidateAttribute(cmd) => cmd.person_id,
+        }
+    }
+}
+
+// Implement DomainCommand trait for formal Category Theory compliance
+impl DomainCommandTrait for PersonCommand {
+    fn name(&self) -> &str {
+        match self {
+            PersonCommand::CreatePerson(_) => "CreatePerson",
+            PersonCommand::UpdateName(_) => "UpdateName",
+            PersonCommand::SetBirthDate(_) => "SetBirthDate",
+            PersonCommand::RecordDeath(_) => "RecordDeath",
+            PersonCommand::DeactivatePerson(_) => "DeactivatePerson",
+            PersonCommand::ReactivatePerson(_) => "ReactivatePerson",
+            PersonCommand::MergePersons(_) => "MergePersons",
+            PersonCommand::ArchivePerson(_) => "ArchivePerson",
+            PersonCommand::RecordAttribute(_) => "RecordAttribute",
+            PersonCommand::UpdateAttribute(_) => "UpdateAttribute",
+            PersonCommand::InvalidateAttribute(_) => "InvalidateAttribute",
         }
     }
 }

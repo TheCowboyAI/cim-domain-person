@@ -4,7 +4,7 @@ use crate::aggregate::{Person, PersonId};
 use crate::commands::*;
 use crate::events::*;
 use crate::value_objects::*;
-use cim_domain::{DomainError, DomainResult};
+use cim_domain::DomainResult;
 
 /// Create a new person
 pub fn handle_create_person(
@@ -24,11 +24,14 @@ pub fn handle_create_person(
     Ok((person, vec![event]))
 }
 
-/// Handle a command for an existing person
+/// Handle a command for an existing person (pure functional)
+///
+/// Consumes the person and returns both the updated person and generated events.
+/// This follows the formal Aggregate trait pattern.
 pub fn handle_person_command(
-    person: &mut Person,
+    person: Person,
     command: PersonCommand,
-) -> DomainResult<Vec<PersonEvent>> {
-    person.handle_command(command)
-        .map_err(DomainError::ValidationError)
+) -> DomainResult<(Person, Vec<PersonEvent>)> {
+    use cim_domain::formal_domain::Aggregate;
+    person.handle(command)
 }

@@ -7,12 +7,22 @@ use crate::aggregate::PersonId;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
-use crate::components::data::EmploymentType;
 
 // Placeholder types until organization domain is available
 pub type OrganizationId = Uuid;
 pub type DepartmentId = Uuid;
 pub type Role = String;
+
+/// Type of employment relationship
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EmploymentType {
+    FullTime,
+    PartTime,
+    Contract,
+    Consultant,
+    Intern,
+    Temporary,
+}
 
 /// Represents an employment relationship between a person and an organization
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

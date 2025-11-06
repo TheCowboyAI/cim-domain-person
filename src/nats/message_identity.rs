@@ -14,7 +14,7 @@ pub struct MessageId(pub Uuid);
 
 impl MessageId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4())
+        Self(Uuid::now_v7())
     }
     
     pub fn from_uuid(uuid: Uuid) -> Self {
@@ -56,7 +56,7 @@ pub struct CorrelationId(pub String);
 
 impl CorrelationId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string())
+        Self(Uuid::now_v7().to_string())
     }
     
     pub fn from_string(id: String) -> Self {
@@ -104,7 +104,7 @@ pub struct CausationId(pub String);
 
 impl CausationId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string())
+        Self(Uuid::now_v7().to_string())
     }
     
     pub fn from_string(id: String) -> Self {
@@ -472,8 +472,8 @@ impl PersonTracingContext {
     /// Create new tracing context
     pub fn new() -> Self {
         Self {
-            trace_id: Uuid::new_v4().to_string(),
-            span_id: Uuid::new_v4().to_string(),
+            trace_id: Uuid::now_v7().to_string(),
+            span_id: Uuid::now_v7().to_string(),
             parent_span_id: None,
             sampled: true,
             flags: 0,
@@ -484,7 +484,7 @@ impl PersonTracingContext {
     pub fn create_child_span(&self) -> Self {
         Self {
             trace_id: self.trace_id.clone(),
-            span_id: Uuid::new_v4().to_string(),
+            span_id: Uuid::now_v7().to_string(),
             parent_span_id: Some(self.span_id.clone()),
             sampled: self.sampled,
             flags: self.flags,
@@ -542,7 +542,7 @@ mod tests {
         let id2 = MessageId::new();
         assert_ne!(id1, id2);
         
-        let uuid = Uuid::new_v4();
+        let uuid = Uuid::now_v7();
         let id3 = MessageId::from_uuid(uuid);
         assert_eq!(id3.as_uuid(), uuid);
     }
