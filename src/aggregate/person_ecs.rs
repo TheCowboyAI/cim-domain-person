@@ -49,6 +49,40 @@ pub type PersonId = EntityId<PersonMarker>;
 /// This follows pure FP/DDD principles: Person contains only what IS a person,
 /// not what a person HAS or what a person DOES.
 ///
+/// # Adding Attributes (The Correct Path)
+///
+/// **IMPORTANT:** Attributes are added through event sourcing, NOT direct mutation!
+///
+/// ```rust,ignore
+/// use cim_domain_person::commands::{PersonCommand, RecordAttribute};
+/// use cim_domain::formal_domain::MealyStateMachine;
+///
+/// // 1. Create the attribute
+/// let attribute = PersonAttribute::new(
+///     AttributeType::Physical(PhysicalAttributeType::Height),
+///     AttributeValue::Length(1.75),
+///     TemporalValidity::of(Utc::now()),
+///     Provenance::new(AttributeSource::Measured, ConfidenceLevel::Certain),
+/// );
+///
+/// // 2. Create RecordAttribute command
+/// let command = PersonCommand::RecordAttribute(RecordAttribute {
+///     person_id,
+///     attribute,
+/// });
+///
+/// // 3. Process command (produces AttributeRecorded event)
+/// let current_state = person.lifecycle.clone();
+/// let events = MealyStateMachine::output(&person, current_state, command);
+///
+/// // 4. Apply event to update person (pure functional - returns new Person)
+/// for event in &events {
+///     person = person.apply_event_pure(event)?;
+/// }
+/// ```
+///
+/// See `examples/adding_attributes.rs` for complete examples.
+///
 /// # Category Theory Compliance
 ///
 /// Person is a Coalgebra: Person → F(Person)
@@ -255,11 +289,6 @@ impl Person {
     /// Get healthcare-relevant attributes
     pub fn healthcare_attributes(&self) -> PersonAttributeSet {
         self.attributes.healthcare_attributes()
-    }
-
-    /// Add an attribute (internal method, typically called via events)
-    pub(crate) fn add_attribute(&mut self, attribute: PersonAttribute) {
-        self.attributes.attributes.push(attribute);
     }
 }
 

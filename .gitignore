@@ -126,4 +126,4 @@ out/
 *.zip
 
 # Project specific
-# Add any project-specific ignores here
+# Add any project-specific ignores here.direnv/

@@ -1,0 +1,22 @@
+# CIM Person Domain Service Environment Configuration
+# Copy this file to /etc/cim-person/environment and customize
+
+# NATS server URL
+# For local NATS: nats://localhost:4222
+# For cluster: nats://10.0.0.41:4222
+NATS_URL=nats://localhost:4222
+
+# JetStream stream name for person events
+STREAM_NAME=PERSON_EVENTS
+
+# Logging level: trace, debug, info, warn, error
+LOG_LEVEL=info
+
+# Snapshot frequency (take snapshot every N events)
+SNAPSHOT_FREQ=100
+
+# Additional NATS configuration (optional)
+# NATS_USER=person-service
+# NATS_PASSWORD=changeme
+# NATS_TOKEN=your-auth-token
+# NATS_CREDS_FILE=/etc/cim-person/nats.creds

@@ -7,7 +7,7 @@
 //! - Event sourcing lifecycle
 
 use cim_domain_person::{
-    aggregate::{Person, PersonId, PersonLifecycle},
+    aggregate::{Person, PersonId},
     commands::CreatePerson,
     events::{PersonEvent, PersonCreated, AttributeRecorded, PersonDeactivated, PersonReactivated},
     value_objects::{

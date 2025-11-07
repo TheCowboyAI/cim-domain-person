@@ -32,7 +32,7 @@ fn test_record_birth_datetime_exact() {
     assert!(matches!(attr.value, AttributeValue::DateTime(_)));
     assert_eq!(attr.provenance.confidence, ConfidenceLevel::Certain);
 
-    if let AttributeSource::Imported { system: ref system } = attr.provenance.source {
+    if let AttributeSource::Imported { ref system } = attr.provenance.source {
         assert_eq!(system, "hospital_integration");
     } else {
         panic!("Expected System source");
@@ -763,7 +763,7 @@ fn test_provenance_source_tracking() {
         ),
     );
 
-    if let AttributeSource::Imported { system: ref system } = attr.provenance.source {
+    if let AttributeSource::Imported { ref system } = attr.provenance.source {
         assert_eq!(system, "epic_ehr");
     } else {
         panic!("Expected Integration source");
@@ -799,7 +799,7 @@ fn test_query_attributes_from_specific_source() {
         .filter(|attr| {
             matches!(
                 &attr.provenance.source,
-                AttributeSource::Imported { system: system } if system == "IRS"
+                AttributeSource::Imported { system } if system == "IRS"
             )
         })
         .collect();

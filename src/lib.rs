@@ -28,6 +28,9 @@ pub mod policies;
 pub mod nats;
 pub mod workflow;
 
+// Category Theory traits (FRP/CT compliance)
+pub mod category_theory;
+
 // Re-export main types
 pub use aggregate::{Person, PersonId, PersonMarker};
 pub use commands::PersonCommand;
@@ -40,7 +43,16 @@ pub use value_objects::PersonName;
 pub use cross_domain::person_organization::{EmploymentRelationship, EmploymentRole};
 
 // Re-export services
-pub use services::{NetworkAnalysisService, NetworkMetrics, NetworkPath, NetworkCommunity};
+pub use services::{
+    NetworkAnalysisService, NetworkMetrics, NetworkPath, NetworkCommunity,
+    PersonService, CommandOperation, QueryOperation,
+};
+
+// Re-export query specifications
+pub use queries::{
+    PersonSummaryQuery, PersonSearchQuery, SkillsQuery,
+    NetworkQuery, TimelineQuery,
+};
 
 // Re-export infrastructure types
 pub use infrastructure::{

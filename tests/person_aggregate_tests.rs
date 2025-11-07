@@ -17,7 +17,7 @@ fn test_create_person_event_sourced() {
     let person_id = PersonId::new();
     let name = PersonName::new("John".to_string(), "Doe".to_string());
 
-    let command = CreatePerson {
+    let _command = CreatePerson {
         person_id,
         name: name.clone(),
         source: "test".to_string(),

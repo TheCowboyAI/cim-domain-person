@@ -149,8 +149,9 @@ impl PersonName {
     /// ```
     /// use cim_domain_person::value_objects::PersonName;
     ///
-    /// let name = PersonName::simple("Jane", "Smith");
-    /// assert_eq!(name.display_name(), "Jane Smith");
+    /// let name = PersonName::new("Jane".to_string(), "Smith".to_string());
+    /// assert_eq!(name.display_name(), "Jane");  // Informal display
+    /// assert_eq!(name.full_name(), "Jane Smith");  // Full formal name
     /// ```
     pub fn new(given_name: String, family_name: String) -> Self {
         Self {
@@ -172,7 +173,7 @@ impl PersonName {
     /// ```
     /// use cim_domain_person::value_objects::PersonName;
     ///
-    /// let name = PersonName::mononym("Suharto");
+    /// let name = PersonName::mononym("Suharto".to_string());
     /// assert_eq!(name.display_name(), "Suharto");
     /// ```
     pub fn mononym(name: String) -> Self {

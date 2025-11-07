@@ -1,6 +1,6 @@
 [package]
 name = "cim-domain-person"
-version = "0.7.8"
+version = "0.8.0"
 edition = "2021"
 authors = ["The Cowboy AI"]
 description = "Person domain for CIM - NATS-first messaging with comprehensive identity management"
@@ -50,6 +50,10 @@ criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 [[bench]]
 name = "event_processing"
 harness = false
+
+[[bin]]
+name = "person-service"
+path = "src/bin/person-service.rs"
 
 [[bin]]
 name = "migrate_events"

@@ -1,4 +1,12 @@
 //! Query service for the Person domain
+//!
+//! This module provides the Query side of CQRS (Command Query Responsibility Segregation).
+//! All queries are read-only operations against projections/read models.
+//!
+//! # FRP/CT Compliance
+//! - Queries are pure read operations with no side effects on domain state
+//! - Query specifications are immutable value objects
+//! - Complete separation from command handling (writes)
 
 use crate::aggregate::PersonId;
 use crate::projections::*;
@@ -6,6 +14,12 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 
 mod async_query_processor;
+pub mod specifications;
+
+pub use specifications::{
+    PersonSummaryQuery, PersonSearchQuery, SkillsQuery,
+    NetworkQuery, TimelineQuery,
+};
 pub use async_query_processor::{
     AsyncQueryProcessor, PersonQueryProcessor, QueryResult,
     SearchCriteria, TimelineEvent, PersonUpdate,

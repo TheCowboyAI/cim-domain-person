@@ -48,7 +48,7 @@ impl NatsEventStore {
     /// Create a new NATS event store
     pub async fn new(client: Client, stream_name: String) -> DomainResult<Self> {
         let jetstream = jetstream::new(client.clone());
-        
+
         // Create or update the stream
         let stream_config = jetstream::stream::Config {
             name: stream_name.clone(),
@@ -58,13 +58,38 @@ impl NatsEventStore {
             max_age: std::time::Duration::from_secs(365 * 24 * 60 * 60),
             ..Default::default()
         };
-        
-        jetstream.create_stream(stream_config).await
-            .map_err(|e| DomainError::ExternalServiceError {
-                service: "NATS JetStream".to_string(),
-                message: format!("Failed to create stream: {e}"),
-            })?;
-        
+
+        // Try to get existing stream first, create if it doesn't exist
+        match jetstream.get_stream(&stream_name).await {
+            Ok(_stream) => {
+                // Stream already exists, use it
+            }
+            Err(_) => {
+                // Stream doesn't exist, try to create it
+                // If creation fails due to overlapping subjects, try to get it anyway
+                match jetstream.create_stream(stream_config).await {
+                    Ok(_) => {},
+                    Err(e) => {
+                        // Check if error is due to overlapping subjects
+                        let error_str = format!("{:?}", e);
+                        if error_str.contains("10065") || error_str.contains("overlap") {
+                            // Stream exists with same subjects, try to get it
+                            jetstream.get_stream(&stream_name).await
+                                .map_err(|e2| DomainError::ExternalServiceError {
+                                    service: "NATS JetStream".to_string(),
+                                    message: format!("Stream with overlapping subjects exists but cannot access it: {e2}"),
+                                })?;
+                        } else {
+                            return Err(DomainError::ExternalServiceError {
+                                service: "NATS JetStream".to_string(),
+                                message: format!("Failed to create stream: {e}"),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(Self {
             _client: client,
             jetstream,

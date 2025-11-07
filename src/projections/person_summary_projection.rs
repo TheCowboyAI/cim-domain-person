@@ -8,6 +8,23 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Extract person ID from any PersonEvent variant
+fn extract_person_id(event: &PersonEvent) -> PersonId {
+    match event {
+        PersonEvent::PersonCreated(e) => e.person_id,
+        PersonEvent::PersonUpdated(e) => e.person_id,
+        PersonEvent::NameUpdated(e) => e.person_id,
+        PersonEvent::BirthDateSet(e) => e.person_id,
+        PersonEvent::DeathRecorded(e) => e.person_id,
+        PersonEvent::PersonDeactivated(e) => e.person_id,
+        PersonEvent::PersonReactivated(e) => e.person_id,
+        PersonEvent::PersonMergedInto(e) => e.source_person_id,
+        PersonEvent::AttributeRecorded(e) => e.person_id,
+        PersonEvent::AttributeUpdated(e) => e.person_id,
+        PersonEvent::AttributeInvalidated(e) => e.person_id,
+    }
+}
+
 /// Projection that maintains person summaries for quick access
 pub struct PersonSummaryProjection {
     summaries: Arc<RwLock<HashMap<PersonId, PersonSummary>>>,
@@ -77,46 +94,31 @@ impl PersonSummaryProjection {
 #[async_trait::async_trait]
 impl PersonProjection for PersonSummaryProjection {
     async fn handle_event(&self, event: &PersonEvent) -> DomainResult<()> {
-        match event {
-            PersonEvent::PersonCreated(e) => {
-                let summary = PersonSummary {
-                    person_id: e.person_id,
-                    name: e.name.display_name(),
-                    primary_email: None,
-                    primary_phone: None,
-                    current_employer: None,
-                    current_role: None,
-                    location: None,
-                    skills_count: 0,
-                    component_count: 0,
-                    last_updated: e.created_at,
-                };
-                
-                let mut summaries = self.summaries.write().await;
-                summaries.insert(e.person_id, summary);
-            }
-            
-            PersonEvent::NameUpdated(e) => {
-                let mut summaries = self.summaries.write().await;
-                if let Some(summary) = summaries.get_mut(&e.person_id) {
-                    summary.name = e.new_name.display_name();
-                    summary.last_updated = e.updated_at;
-                }
-            }
+        // Infrastructure adapter: Load → Apply Pure Function → Save
 
-            PersonEvent::PersonDeactivated(e) => {
-                let mut summaries = self.summaries.write().await;
-                summaries.remove(&e.person_id);
+        // Get person ID from event (helper function extracts from any variant)
+        let person_id = extract_person_id(event);
+
+        // Load current state
+        let current = {
+            let summaries = self.summaries.read().await;
+            summaries.get(&person_id).cloned()
+        };
+
+        // Apply pure projection function (no side effects!)
+        let new_state = super::pure_projections::project_person_summary(current, event);
+
+        // Save new state (side effect isolated to infrastructure)
+        let mut summaries = self.summaries.write().await;
+        match new_state {
+            Some(summary) => {
+                summaries.insert(person_id, summary);
             }
-            
-            PersonEvent::PersonMergedInto(e) => {
-                let mut summaries = self.summaries.write().await;
-                summaries.remove(&e.source_person_id);
+            None => {
+                summaries.remove(&person_id);
             }
-            
-            _ => {} // Other events don't affect summaries
         }
-        
+
         Ok(())
     }
     

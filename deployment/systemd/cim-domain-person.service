@@ -1,0 +1,60 @@
+[Unit]
+Description=CIM Person Domain Service
+Documentation=https://github.com/thecowboyai/cim-domain-person
+After=network-online.target nats.service
+Wants=network-online.target
+Requires=nats.service
+
+[Service]
+Type=simple
+User=cim-person
+Group=cim-person
+WorkingDirectory=/var/lib/cim-person
+
+# Service binary
+ExecStart=/usr/local/bin/person-service
+
+# Environment configuration
+Environment="NATS_URL=nats://localhost:4222"
+Environment="STREAM_NAME=PERSON_EVENTS"
+Environment="LOG_LEVEL=info"
+Environment="SNAPSHOT_FREQ=100"
+
+# Override environment from file
+EnvironmentFile=-/etc/cim-person/environment
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cim-person
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+
+# Resource limits
+LimitNOFILE=65536
+TasksMax=4096
+
+# Restart policy
+Restart=always
+RestartSec=10s
+StartLimitBurst=5
+StartLimitIntervalSec=60s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cim-person
+
+[Install]
+WantedBy=multi-user.target

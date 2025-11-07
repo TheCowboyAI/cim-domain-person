@@ -21,6 +21,12 @@ pub use person_skills_projection::*;
 pub use person_network_projection::*;
 pub use person_timeline_projection::*;
 
+// Pure functional projections (FRP/CT compliant)
+pub mod pure_projections;
+pub use pure_projections::{
+    project_person_summary, project_person_search, project_timeline_entry
+};
+
 mod async_handlers;
 pub use async_handlers::{
     AsyncProjectionHandler, SummaryProjectionHandler, SkillsProjectionHandler,
