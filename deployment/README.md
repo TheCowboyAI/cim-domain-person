@@ -104,13 +104,62 @@ sudo journalctl -u cim-domain-person -f
 - Standard systemd service
 - Familiar management tools
 
-### 3. Docker Container (Planned)
+### 3. Proxmox LXC Container (Production)
 
-Docker deployment is planned for future release.
+Deploy as a Proxmox LXC container for production use with horizontal scaling.
 
-### 4. Kubernetes (Planned)
+```bash
+# Build LXC container
+nix build .#person-lxc
 
-Kubernetes deployment is planned for future release.
+# Deploy to Proxmox
+scp result/*.tar.xz root@proxmox:/var/lib/vz/template/cache/
+pct create 140 /var/lib/vz/template/cache/*.tar.xz \
+  --hostname person-service \
+  --net0 name=eth0,bridge=vmbr0,ip=10.0.64.140/19,gw=10.0.64.1
+```
+
+See [CONTAINER_DEPLOYMENT.md](CONTAINER_DEPLOYMENT.md) for complete guide.
+
+**Advantages:**
+- Scalable (create multiple replicas)
+- Lightweight containers
+- Declarative configuration
+- Full NixOS isolation
+
+### 4. NixOS Containers (Pure NixOS)
+
+Deploy using native NixOS containers for pure declarative infrastructure.
+
+```nix
+{
+  containers.person-service = {
+    autoStart = true;
+    privateNetwork = true;
+    config = import ./deployment/nix/container.nix;
+  };
+}
+```
+
+**Advantages:**
+- Fully declarative
+- Atomic rollbacks
+- No Proxmox dependency
+
+### 5. nix-darwin (macOS Development)
+
+Deploy on macOS using nix-darwin's launchd integration.
+
+```nix
+{
+  imports = [ cim-domain-person.darwinModules.default ];
+
+  services.cim-domain-person = {
+    enable = true;
+    natsUrl = "nats://10.0.0.41:4222";
+  };
+}
+```
 
 ## Configuration
 
