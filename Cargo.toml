@@ -12,7 +12,7 @@ categories = ["data-structures", "web-programming"]
 
 [dependencies]
 # Domain dependencies
-cim-domain = { git = "https://github.com/TheCowboyAI/cim-domain.git", branch = "main" }
+cim-domain = { git = "https://github.com/TheCowboyAI/cim-domain.git", tag = "v0.8.0" }
 
 # Core dependencies
 serde = { version = "1.0", features = ["derive"] }
