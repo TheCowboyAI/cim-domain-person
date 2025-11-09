@@ -11,8 +11,8 @@ keywords = ["cim", "domain", "person", "identity", "nats"]
 categories = ["data-structures", "web-programming"]
 
 [dependencies]
-# Domain dependencies - using local version with FormalEntityId blanket impl
-cim-domain = { path = "../cim-domain" }
+# Domain dependencies
+cim-domain = { git = "https://github.com/TheCowboyAI/cim-domain.git", branch = "main" }
 
 # Core dependencies
 serde = { version = "1.0", features = ["derive"] }
